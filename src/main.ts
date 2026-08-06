@@ -4,6 +4,8 @@ import { CharacterCustomizeScene } from './scenes/CharacterCustomizeScene';
 import { OlinScene } from './scenes/OlinScene';
 import { BDScene } from './scenes/BDScene';
 import { DormScene } from './scenes/DormScene';
+import { ChooseStudySpotScene } from './scenes/ChooseStudySpotScene';
+import { ShopScene } from './scenes/ShopScene';
 
 new Phaser.Game({
   type: Phaser.AUTO,
@@ -14,8 +16,10 @@ new Phaser.Game({
   scene: [
     WelcomeScene,
     CharacterCustomizeScene,
+    ChooseStudySpotScene,
     OlinScene,
     BDScene,
     DormScene,
+    ShopScene,
   ],
 });
