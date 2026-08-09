@@ -13,7 +13,7 @@ export class CharacterCustomizeScene extends Phaser.Scene {
   const bg = this.add.image(104, 64, 'customize_background');
   bg.setOrigin(0.5);
 
-  const player1 = this.add.image(90, 64,'girl_player');
+  const player1 = this.add.image(104, 64,'girl_player');
 
     player1.setInteractive({ useHandCursor: true });
     player1.on('pointerdown', () => {
@@ -21,7 +21,7 @@ export class CharacterCustomizeScene extends Phaser.Scene {
       this.scene.start('ChooseStudySpotScene');
     });
 
-    const player2 = this.add.image(110, 64,'boy_player');
+    const player2 = this.add.image(104, 64,'boy_player');
 
     player2.setInteractive({ useHandCursor: true });
     player2.on('pointerdown', () => {

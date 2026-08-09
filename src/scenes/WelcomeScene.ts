@@ -4,29 +4,30 @@ export class WelcomeScene extends Phaser.Scene {
   constructor() {
     super('WelcomeScene');
   }
-  preload(){
-    this.load.image('washu', 'assets/WashU-Law-Campus-04-small.webp');
+  preload() {
+    this.load.aseprite('washu', 'assets/welcom_page_no_button.png', 'assets/welcom_page_no_button.json');
+    this.load.aseprite('start_btn', 'assets/start_button.png', 'assets/start_button.json');
   }
   create() {
-    const bg = this.add.image(400, 300, 'washu');
-    bg.setDisplaySize(800, 600);
-    this.add.text(280, 20, 'STUDY AT WASHU!', {
-        color: '#fff',
-        fontSize: '28px',
-        stroke: '#000',
-        strokeThickness: 4,
-    });
-    const startButton = this.add.text(400, 500, 'Start', {
-        color: '#fff',
-        fontSize: '32px',
-        backgroundColor: '#1F6B54',
-        padding: { x: 20, y: 10 },
-    });
-    startButton.setOrigin(0.5);
-    startButton.setInteractive({ useHandCursor: true });
+  this.anims.createFromAseprite('washu');
+  const bg = this.add.sprite(104, 64, 'washu');
+  bg.setOrigin(0.5);
 
-    startButton.on('pointerdown', () => {
-        this.scene.start('CharacterCustomizeScene');
+  bg.play({ key: 'intro', repeat: -1, frameRate: 4 });
+
+  const startButton = this.add.sprite(104, 15, 'start_btn', 0); // 0 = starting frame index
+  startButton.setInteractive({ useHandCursor: true });
+
+  startButton.on('pointerover', () => {
+    startButton.setFrame(1);
   });
-  }
+
+  startButton.on('pointerout', () => {
+    startButton.setFrame(0);
+  });
+
+  startButton.on('pointerdown', () => {
+    this.scene.start('CharacterCustomizeScene');
+  });
+}
 }

@@ -9,17 +9,19 @@ import { ShopScene } from './scenes/ShopScene';
 
 new Phaser.Game({
   type: Phaser.AUTO,
-  width: 800,
-  height: 600,
+  width: 208,
+  height: 128,
+  zoom: 3,
+  pixelArt: true,
   parent: 'app',
   backgroundColor: '#f4f1ea',
   scene: [
     WelcomeScene,
     CharacterCustomizeScene,
     ChooseStudySpotScene,
-    OlinScene,
     BDScene,
     DormScene,
     ShopScene,
+    OlinScene,
   ],
 });
