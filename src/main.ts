@@ -16,12 +16,12 @@ new Phaser.Game({
   parent: 'app',
   backgroundColor: '#f4f1ea',
   scene: [
+    OlinScene,
     WelcomeScene,
     CharacterCustomizeScene,
     ChooseStudySpotScene,
     BDScene,
     DormScene,
     ShopScene,
-    OlinScene,
   ],
 });

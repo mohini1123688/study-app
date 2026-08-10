@@ -13,7 +13,7 @@ export class WelcomeScene extends Phaser.Scene {
   const bg = this.add.sprite(104, 64, 'washu');
   bg.setOrigin(0.5);
 
-  bg.play({ key: 'intro', repeat: -1, frameRate: 4 });
+  bg.play({ key: 'intro', repeat: -1, frameRate: 6 });
 
   const startButton = this.add.sprite(104, 15, 'start_btn', 0); // 0 = starting frame index
   startButton.setInteractive({ useHandCursor: true });

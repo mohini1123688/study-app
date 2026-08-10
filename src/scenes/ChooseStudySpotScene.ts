@@ -5,37 +5,73 @@ export class ChooseStudySpotScene extends Phaser.Scene {
     super('ChooseStudySpotScene');
   }
   preload() {
-    this.load.image('olin', 'assets/olin.jpg')
-    this.load.image('bd', 'assets/bd.jpg')
-    this.load.image('dorm', 'assets/dorm.jpg')
+    this.load.aseprite('duc_hover', 'assets/duc_hover.png', 'assets/duc_hover.json');
+    this.load.aseprite('olin_hover', 'assets/olin_hover.png', 'assets/olin_hover.json');
+    this.load.aseprite('dorm_hover', 'assets/dorm_hover.png', 'assets/dorm_hover.json');
+    this.load.image('map_only_grass', 'assets/map_only_grass.png');
+    this.load.image('map_only_trees', 'assets/map_only_trees.png');
+    this.load.aseprite('girl_player', 'assets/good_sprite_outline_girl.png', 'assets/good_sprite_outline_girl.json');
+    this.load.aseprite('boy_player', 'assets/good_sprite_outline.png', 'assets/good_sprite_outline.json');
   }
   create() {
-    this.add.text(230, 20, 'Choose where you want to study!', { color: '#000' });
-    const olin = this.add.image(150,320,'olin');
-    olin.setDisplaySize(200,200);
-    this.add.text(130, 430, 'OLIN', { color: '#000' });
+    const bg = this.add.image(104, 64, 'map_only_grass');
+    bg.setOrigin(0.5);
+
+    this.anims.createFromAseprite('duc_hover');
+    this.anims.createFromAseprite('olin_hover');
+    this.anims.createFromAseprite('dorm_hover');
+
+    const chosenKey = this.registry.get('selectedCharacter');
+    const player = this.add.sprite(196, 115, chosenKey);
+    const animKey = chosenKey === 'girl_player' ? 'pick_me' : 'pick_me_boy';
+    player.play({ key: animKey, repeat: -1 });
+
+    const duc = this.add.sprite(87, 57, 'duc_hover');
+
+    duc.setInteractive({ useHandCursor: true });
+
+    duc.on('pointerover', () => {
+      duc.setFrame(1);
+    });
+
+    duc.on('pointerout', () => {
+      duc.setFrame(0);
+    });
+    duc.on('pointerdown', () => {
+      this.scene.start('BDScene');
+    });
+
+    const olin = this.add.sprite(126, 47, 'olin_hover');
 
     olin.setInteractive({ useHandCursor: true });
+
+    olin.on('pointerover', () => {
+      olin.setFrame(1);
+    });
+
+    olin.on('pointerout', () => {
+      olin.setFrame(0);
+    });
     olin.on('pointerdown', () => {
-        this.scene.start('OlinScene');
+      this.scene.start('OlinScene');
     });
 
-    const bd = this.add.image(370,320,'bd');
-    bd.setDisplaySize(200,200);
-    this.add.text(350, 430, 'BD', { color: '#000' });
-
-    bd.setInteractive({ useHandCursor: true });
-    bd.on('pointerdown', () => {
-        this.scene.start('BDScene');
-    });
-
-    const dorm = this.add.image(590,320,'dorm');
-    dorm.setDisplaySize(200,200);
-    this.add.text(570, 430, 'DORM', { color: '#000' });
+    const dorm = this.add.sprite(54, 90, 'dorm_hover');
 
     dorm.setInteractive({ useHandCursor: true });
-    dorm.on('pointerdown', () => {
-        this.scene.start('DormScene');
+
+    dorm.on('pointerover', () => {
+      dorm.setFrame(1);
     });
+
+    dorm.on('pointerout', () => {
+      dorm.setFrame(0);
+    });
+    dorm.on('pointerdown', () => {
+      this.scene.start('DormScene');
+    });
+
+    const trees = this.add.image(104, 64, 'map_only_trees');
+    trees.setOrigin(0.5);
   }
 }
