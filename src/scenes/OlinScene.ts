@@ -16,7 +16,7 @@ export class OlinScene extends Phaser.Scene {
     this.load.aseprite('start_study_button', 'assets/start_study_button.png', 'assets/start_study_button.json');
     this.load.image('clock_button', 'assets/clock_button.png')
     this.load.image('pick_time', 'assets/pick_time.png')
-    this.load.aseprite('task_bar', 'assets/task_bar.png', 'assets/task_bar.json');
+    this.load.aseprite('task_bar', 'assets/new_taskbar.png', 'assets/new_taskbar.json');
     this.load.aseprite('status_bar', 'assets/status_bar.png', 'assets/status_bar.json');
     this.load.aseprite('girl_player', 'assets/good_sprite_outline_girl.png', 'assets/good_sprite_outline_girl.json');
     this.load.aseprite('boy_player', 'assets/good_sprite_outline.png', 'assets/good_sprite_outline.json');
@@ -34,9 +34,9 @@ export class OlinScene extends Phaser.Scene {
 
     const status_bar = this.add.sprite(104, 8, 'status_bar')
 
-    const task_bar = this.add.sprite(187, 78, 'task_bar')
+    const task_bar = this.add.sprite(213, 80, 'task_bar')
     const pick_time_button = this.add.sprite(201, 106, 'pick_time')
-    pick_time_button.setVisible(false); // hidden until clock button is clicked
+    pick_time_button.setVisible(false);
     const start_study_button = this.add.sprite(182, 117, 'start_study_button')
     const clock_button = this.add.image(201, 117, 'clock_button')
 
@@ -44,6 +44,7 @@ export class OlinScene extends Phaser.Scene {
     const player = this.add.sprite(64, 35, chosenKey);
     const animKey = chosenKey === 'girl_player' ? 'pick_me' : 'pick_me_boy';
     const typingKey = chosenKey === 'girl_player' ? 'typing' : 'typing_boy';
+    const danceKey = chosenKey === 'girl_player' ? 'dance' : 'dancing_boy';
     player.play({ key: animKey, repeat: -1 });
 
     const table = this.add.image(104, 50, 'olin_table');
@@ -55,13 +56,34 @@ export class OlinScene extends Phaser.Scene {
     const table3 = this.add.image(104, 110, 'olin_table');
     const light3 = this.add.image(104, 102, 'light');
 
+    // --- WORLD -> SCREEN HELPER ---
+    // Converts a world-space (game coordinate) point to real screen CSS pixels,
+    // accounting for whatever the canvas is actually rendered at (zoom + any
+    // additional CSS scaling), rather than hardcoding a zoom constant.
+    const worldToScreen = (worldX: number, worldY: number) => {
+      const canvas = this.game.canvas;
+      const rect = canvas.getBoundingClientRect();
+      const sx = rect.width / this.scale.width;   // this.scale.width = 208 (internal game width)
+      const sy = rect.height / this.scale.height; // this.scale.height = 128 (internal game height)
+      return {
+        x: rect.left + worldX * sx,
+        y: rect.top + worldY * sy,
+      };
+    };
+
     //TASK BAR CODE
     type Task = { id: number; text: string; completed: boolean };
-    const MAX_TASKS = 6;
+    const MAX_TASKS = 7;
 
     const getTasks = (): Task[] => this.registry.get('taskList') ?? [];
 
     const overlayEl = document.getElementById('task-list-overlay') as HTMLDivElement;
+    const inputEl = document.getElementById('task-input') as HTMLInputElement;
+
+    const setTasks = (tasks: Task[]) => {
+      this.registry.set('taskList', tasks);
+      renderTaskList();
+    };
 
     const renderTaskList = () => {
       const tasks = getTasks();
@@ -69,87 +91,55 @@ export class OlinScene extends Phaser.Scene {
 
       overlayEl.style.display = 'flex';
       overlayEl.style.flexDirection = 'column';
-      overlayEl.style.justifyContent = 'flex-end'; // stacks content from the bottom up
-      overlayEl.style.height = '60px'; // <-- needs a real height for flex-end to have room to push content upward within
+      overlayEl.style.justifyContent = 'flex-end'; // anchors content to the bottom
 
       overlayEl.innerHTML = tasks.map(task => `
-  <div style="
-  position: relative;
-  width: 8px;  
-  color: white;
-  font-size: 10px;
-  font-family: sans-serif;
-  margin-bottom: 16px;
-">
-    <span style="
-      text-decoration: ${task.completed ? 'line-through' : 'none'};
-      opacity: ${task.completed ? 0.6 : 1};
-    ">${task.text}</span>
-
-    <div class="delete-zone" data-id="${task.id}" style="
-      position: absolute;
-      left: -7px;
-      top: -5px;
-      width: 6px;
-      height: 6px;
-      pointer-events: auto;
-      cursor: pointer;
-    "></div>
-
-    <div class="check-btn" data-id="${task.id}" style="
-      position: absolute;
-      right: -81px;
-      top: 0.5px;
-      width: 12px;
-      height: 9px;
-      pointer-events: auto;
-      cursor: pointer;
-    "></div>
-  </div>
-`).join('');
-      overlayEl.querySelectorAll('.delete-zone').forEach(el => {
-        el.addEventListener('click', () => {
-          const id = Number((el as HTMLElement).dataset.id);
-          setTasks(getTasks().filter(t => t.id !== id));
-        });
-      });
-
-      overlayEl.querySelectorAll('.check-btn').forEach(el => {
-        el.addEventListener('click', () => {
-          const id = Number((el as HTMLElement).dataset.id);
-          setTasks(getTasks().map(t => t.id === id ? { ...t, completed: !t.completed } : t));
-        });
-      });
+    <div style="color: black; font-size: 12px; font-family: sans-serif; margin-bottom: 22px;">
+      ${task.text}
+    </div>
+  `).join('');
     };
+
+    // Anchored to task_bar's actual position now, not guessed constants.
     const positionOverlay = () => {
+      const originX = task_bar.x - task_bar.displayWidth / 2;
+      const originY = task_bar.y - task_bar.displayHeight / 2;
+
+      // TUNE THESE — world-space pixels, same units as showTaskInput's offsets
+      const offsetX = 6;
+      const offsetY = 84;
+
+      const { x, y } = worldToScreen(originX + offsetX, originY + offsetY);
+      overlayEl.style.left = `${x}px`;
+      overlayEl.style.top = `${y}px`;
       const canvas = this.game.canvas;
-      const rect = canvas.getBoundingClientRect();
+  const rect = canvas.getBoundingClientRect();
+  const sy = rect.height / this.scale.height;
+  const heightWorld = 12; // world units — tune to fit ~7 tasks
+  overlayEl.style.height = `${heightWorld * sy}px`;
 
-      overlayEl.style.left = `${rect.left + 520}px`;
-      overlayEl.style.top = `${rect.top + 255}px`;
-      overlayEl.style.display = 'block';
+  overlayEl.style.display = 'flex';
+  overlayEl.style.zIndex = '1000';
     };
-    const setTasks = (tasks: Task[]) => {
-      this.registry.set('taskList', tasks);
-      renderTaskList();
-    };
-
-    positionOverlay();
-    renderTaskList();
-
-    const inputEl = document.getElementById('task-input') as HTMLInputElement;
 
     const showTaskInput = () => {
-      const canvas = this.game.canvas;
-      const rect = canvas.getBoundingClientRect();
-      const zoom = 3;
+      const originX = task_bar.x - task_bar.displayWidth / 2;
+      const originY = task_bar.y - task_bar.displayHeight / 2;
 
-      const worldX = 175;
-      const worldY = 105;
+      const offsetX = 4;
+      const offsetY = 95;
 
-      inputEl.style.left = `${rect.left + worldX * zoom}px`;
-      inputEl.style.top = `${rect.top + worldY * zoom}px`;
+      const { x, y } = worldToScreen(originX + offsetX, originY + offsetY);
+      inputEl.style.left = `${x}px`;
+      inputEl.style.top = `${y}px`;
+
+      inputEl.style.width = '95px';
+      inputEl.style.height = '20px';
+      inputEl.style.fontSize = '12px';
+      inputEl.style.padding = '2px 4px';
+
       inputEl.style.display = 'block';
+      inputEl.style.zIndex = '1000';
       inputEl.focus();
     };
 
@@ -161,9 +151,18 @@ export class OlinScene extends Phaser.Scene {
     let justOpened = false;
 
     task_bar.setInteractive({
-      hitArea: new Phaser.Geom.Rectangle(7, 57, 25, 7),
+      hitArea: new Phaser.Geom.Rectangle(4, 94, 37, 11), // confirmed against new art
       hitAreaCallback: Phaser.Geom.Rectangle.Contains,
       useHandCursor: true
+    });
+
+    task_bar.on('pointerdown', () => {
+      console.log('task bar clicked');
+      if (getTasks().length >= MAX_TASKS) {
+        return;
+      }
+      showTaskInput();
+      justOpened = true;
     });
 
     const handleOutsideClick = (e: MouseEvent) => {
@@ -195,13 +194,8 @@ export class OlinScene extends Phaser.Scene {
     };
     inputEl.addEventListener('keydown', handleTaskInputKeydown);
 
-    task_bar.on('pointerdown', () => {
-      if (getTasks().length >= MAX_TASKS) {
-        return;
-      }
-      showTaskInput();
-      justOpened = true;
-    });
+    positionOverlay();
+    renderTaskList();
 
     // STUDY SESSION CODE
 
@@ -209,16 +203,14 @@ export class OlinScene extends Phaser.Scene {
     let statusTween: Phaser.Tweens.Tween | null = null;
     let studyRunning = false;
 
+    // Rewritten to use the shared helper instead of a hardcoded zoom constant.
     const positionPickTimeOverlay = () => {
-      const canvas = this.game.canvas;
-      const rect = canvas.getBoundingClientRect();
-      const zoom = 3;
-
       const worldX = 201 - pick_time_button.displayWidth / 2;
       const worldY = 106 - pick_time_button.displayHeight / 2;
 
-      pickTimeEl.style.left = `${rect.left + worldX * zoom}px`;
-      pickTimeEl.style.top = `${rect.top + worldY * zoom}px`;
+      const { x, y } = worldToScreen(worldX, worldY);
+      pickTimeEl.style.left = `${x}px`;
+      pickTimeEl.style.top = `${y}px`;
     };
 
     const hidePickTime = () => {
@@ -335,7 +327,7 @@ export class OlinScene extends Phaser.Scene {
       statusTween = null;
 
       hideAllStudyItems();
-      player.play({ key: animKey, repeat: -1 }); // back to idle
+      player.play({ key: danceKey, repeat: -1 }); // back to idle
 
       // reward logic goes here later
     };
