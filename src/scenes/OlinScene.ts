@@ -22,6 +22,16 @@ export class OlinScene extends Phaser.Scene {
     this.load.aseprite('status_bar', 'assets/status_bar.png', 'assets/status_bar.json');
     this.load.aseprite('girl_player', 'assets/good_sprite_outline_girl.png', 'assets/good_sprite_outline_girl.json');
     this.load.aseprite('boy_player', 'assets/good_sprite_outline.png', 'assets/good_sprite_outline.json');
+
+    this.load.image('time_pop_up', 'assets/time_pop_up.png');
+    this.load.aseprite('twenty_five_button', 'assets/twenty_five_button.png', 'assets/twenty_five_button.json');
+    this.load.aseprite('sixty_min_button', 'assets/sixty_min_button.png', 'assets/sixty_min_button.json');
+    this.load.aseprite('custom_min_button', 'assets/custom_min_button.png', 'assets/custom_min_button.json');
+    this.load.aseprite('time_picked', 'assets/time_picked.png', 'assets/time_picked.json');
+
+    this.load.image('completed_session', 'assets/completed_session.png')
+    this.load.image('complete_session_delete_button', 'assets/complete_session_delete_button.png')
+
   }
   create() {
     const bg = this.add.image(104, 64, 'olin_only_room');
@@ -33,6 +43,7 @@ export class OlinScene extends Phaser.Scene {
     home_button.on('pointerdown', () => {
       this.scene.start('WelcomeScene');
     });
+
 
     const status_bar = this.add.sprite(104, 8, 'status_bar')
 
@@ -58,6 +69,88 @@ export class OlinScene extends Phaser.Scene {
     const table3 = this.add.image(104, 110, 'olin_table');
     const light3 = this.add.image(104, 102, 'light');
 
+    const time_pop_up = this.add.image(104, 75, 'time_pop_up')
+
+    const twenty_five_button = this.add.sprite(104, 67, 'twenty_five_button')
+    const sixty_min_button = this.add.sprite(104, 83, 'sixty_min_button')
+    const custom_min_button = this.add.sprite(104, 99, 'custom_min_button')
+
+    const completed_session = this.add.image(104, 75, 'completed_session');
+    completed_session.setVisible(false);
+    const complete_session_delete_button = this.add.image(82, 44, 'complete_session_delete_button');
+    complete_session_delete_button.setInteractive({ useHandCursor: true });
+    complete_session_delete_button.setVisible(false)
+    complete_session_delete_button.setDepth(101);
+
+    time_pop_up.setVisible(false)
+    twenty_five_button.setVisible(false)
+    sixty_min_button.setVisible(false)
+    custom_min_button.setVisible(false)
+
+    let pickTimeOpen = true;
+
+    const hidePickTime = () => {
+      time_pop_up.setVisible(false)
+      twenty_five_button.setVisible(false)
+      sixty_min_button.setVisible(false)
+      custom_min_button.setVisible(false)
+      pickTimeOpen = false;
+    };
+
+    const showPickTime = () => {
+      time_pop_up.setVisible(true)
+      twenty_five_button.setVisible(true)
+      sixty_min_button.setVisible(true)
+      custom_min_button.setVisible(true)
+      pickTimeOpen = true;
+    };
+
+    const time_picked = this.add.sprite(155, 6, 'time_picked')
+    time_picked.setVisible(false);
+
+    twenty_five_button.setInteractive({ useHandCursor: true });
+    sixty_min_button.setInteractive({ useHandCursor: true });
+    custom_min_button.setInteractive({ useHandCursor: true });
+
+    twenty_five_button.on('pointerover', () => {
+      twenty_five_button.setFrame(1);
+    });
+
+    twenty_five_button.on('pointerout', () => {
+      twenty_five_button.setFrame(0);
+    });
+
+    twenty_five_button.on('pointerdown', () => {
+      time_picked.setVisible(true);
+      this.registry.set('timeSelected', 'twenty_five');
+      time_picked.setFrame(0);
+      hidePickTime()
+    });
+
+    sixty_min_button.on('pointerover', () => {
+      sixty_min_button.setFrame(1);
+    });
+
+    sixty_min_button.on('pointerout', () => {
+      sixty_min_button.setFrame(0);
+    });
+
+    sixty_min_button.on('pointerdown', () => {
+      time_picked.setVisible(true);
+      this.registry.set('timeSelected', 'sixty_min');
+      time_picked.setFrame(1);
+      hidePickTime()
+    });
+
+    custom_min_button.on('pointerover', () => {
+      custom_min_button.setFrame(1);
+    });
+
+    custom_min_button.on('pointerout', () => {
+      custom_min_button.setFrame(0);
+    });
+    //No pointer down for custom...havent deisgned that yet!
+
     // --- WORLD -> SCREEN HELPER ---
     // Converts a world-space (game coordinate) point to real screen CSS pixels,
     // accounting for whatever the canvas is actually rendered at (zoom + any
@@ -77,68 +170,22 @@ export class OlinScene extends Phaser.Scene {
     const taskBar = setupTaskBar(this, task_bar);
 
     // STUDY SESSION CODE
-
-    const pickTimeEl = document.getElementById('pick-time-overlay') as HTMLDivElement;
-    let statusTween: Phaser.Tweens.Tween | null = null;
-    let studyRunning = false;
-
-    // Rewritten to use the shared helper instead of a hardcoded zoom constant.
-    const positionPickTimeOverlay = () => {
-      const worldX = 201 - pick_time_button.displayWidth / 2;
-      const worldY = 106 - pick_time_button.displayHeight / 2;
-
-      const { x, y } = worldToScreen(worldX, worldY);
-      pickTimeEl.style.left = `${x}px`;
-      pickTimeEl.style.top = `${y}px`;
-    };
-
-    const hidePickTime = () => {
-      pickTimeEl.style.display = 'none';
-      pickTimeEl.innerHTML = '';
-      pick_time_button.setVisible(false);
-    };
-
-    const showPickTime = () => {
-      positionPickTimeOverlay();
-      pick_time_button.setVisible(true);
-
-      pickTimeEl.innerHTML = `
-        <span class="time-25" style="
-          position: absolute;
-          left: 7px;
-          top: 5px;
-          color: black;
-          font-size: 10px;
-          cursor: pointer;
-          pointer-events: auto;
-        ">25</span>
-
-        <span class="time-60" style="
-          position: absolute;
-          left: 7px;
-          top: 20px;
-          color: black;
-          font-size: 10px;
-          cursor: pointer;
-          pointer-events: auto;
-        ">60</span>
-      `;
-      pickTimeEl.style.display = 'block';
-
-      pickTimeEl.querySelector('.time-25')!.addEventListener('click', () => {
-        this.registry.set('timeSelected', 'twenty_five');
-        hidePickTime();
-      });
-      pickTimeEl.querySelector('.time-60')!.addEventListener('click', () => {
-        this.registry.set('timeSelected', 'sixty_min');
-        hidePickTime();
-      });
-    };
+    showPickTime()
 
     clock_button.setInteractive({ useHandCursor: true });
     clock_button.on('pointerdown', () => {
-      showPickTime();
+      if (!studyRunning) {
+        if (pickTimeOpen) {
+          hidePickTime();
+        } else {
+          showPickTime();
+        }
+      }
     });
+
+    let statusTween: Phaser.Tweens.Tween | null = null;
+    let studyRunning = false;
+
 
     const paper_and_pencil = this.add.image(65, 45, 'paper_and_pencil');
     const laptop = this.add.image(64, 46, 'laptop');
@@ -199,6 +246,56 @@ export class OlinScene extends Phaser.Scene {
       player.play({ key: animKey, repeat: -1 }); // back to idle
     };
 
+    const completedSessionEl = document.getElementById('completed-session-overlay') as HTMLDivElement;
+
+    const positionCompletedOverlay = () => {
+      const originX = completed_session.x - completed_session.displayWidth / 2;
+      const originY = completed_session.y - completed_session.displayHeight / 2;
+
+      const { x, y } = worldToScreen(originX, originY);
+      completedSessionEl.style.left = `${x}px`;
+      completedSessionEl.style.top = `${y}px`;
+
+      const canvas = this.game.canvas;
+      const rect = canvas.getBoundingClientRect();
+      const sx = rect.width / this.scale.width;
+      const sy = rect.height / this.scale.height;
+
+      // match this to completed_session's actual displayed size
+      completedSessionEl.style.width = `${completed_session.displayWidth * sx}px`;
+      completedSessionEl.style.height = `${completed_session.displayHeight * sy}px`;
+      completedSessionEl.style.paddingTop = '18px';
+
+      completedSessionEl.style.display = 'flex';
+      completedSessionEl.style.flexDirection = 'column';
+      completedSessionEl.style.justifyContent = 'center';
+    };
+
+    const renderCompletedList = () => {
+      const tasks = this.registry.get('taskList') ?? [];
+      const completedTasks = tasks.filter((t: { completed: boolean }) => t.completed);
+
+      completedSessionEl.innerHTML = completedTasks.length === 0
+  ? `<div style="
+      color: black;
+      font-size: 12px;
+      font-family: sans-serif;
+      text-align: center;
+    ">No completed tasks yet!</div>`
+  : completedTasks.map(task => `
+      <div style="
+        color: black;
+        font-size: 12px;
+        font-family: sans-serif;
+        text-align: center;
+        margin-bottom: 4px;
+      ">
+        ${task.text}
+      </div>
+    `).join('');
+    };
+
+
     const finishStudySession = () => {
       studyRunning = false;
       start_study_button.setFrame(0);
@@ -207,8 +304,19 @@ export class OlinScene extends Phaser.Scene {
       hideAllStudyItems();
       player.play({ key: danceKey, repeat: -1 }); // back to idle
 
+      completed_session.setVisible(true)
+      complete_session_delete_button.setVisible(true)
+      positionCompletedOverlay();
+      renderCompletedList();
+
       // reward logic goes here later
     };
+
+complete_session_delete_button.on('pointerdown', () => {
+  completed_session.setVisible(false);
+  complete_session_delete_button.setVisible(false);
+  completedSessionEl.style.display = 'none';
+});
 
     start_study_button.setInteractive({ useHandCursor: true });
     start_study_button.on('pointerdown', () => {
@@ -220,6 +328,8 @@ export class OlinScene extends Phaser.Scene {
     });
 
     this.events.once('shutdown', () => {
+      completedSessionEl.style.display = 'none';
+      completedSessionEl.innerHTML = '';
       taskBar.destroy();
       hidePickTime();
       if (statusTween) statusTween.stop();
