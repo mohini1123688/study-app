@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { setupTaskBar } from './taskBar';
+import { setupMultiplayer } from './multiplayer';
 
 export class OlinScene extends Phaser.Scene {
   constructor() {
@@ -34,6 +35,7 @@ export class OlinScene extends Phaser.Scene {
 
   }
   create() {
+   
     const bg = this.add.image(104, 64, 'olin_only_room');
     bg.setOrigin(0.5);
 
@@ -54,6 +56,9 @@ export class OlinScene extends Phaser.Scene {
     const clock_button = this.add.image(199, 117, 'clock_button')
 
     const chosenKey = this.registry.get('selectedCharacter') ?? 'girl_player';
+    const multiplayer = setupMultiplayer(this, chosenKey);
+
+
     const player = this.add.sprite(64, 35, chosenKey);
     const animKey = chosenKey === 'girl_player' ? 'pick_me' : 'pick_me_boy';
     const typingKey = chosenKey === 'girl_player' ? 'typing' : 'typing_boy';
@@ -276,13 +281,13 @@ export class OlinScene extends Phaser.Scene {
       const completedTasks = tasks.filter((t: { completed: boolean }) => t.completed);
 
       completedSessionEl.innerHTML = completedTasks.length === 0
-  ? `<div style="
+        ? `<div style="
       color: black;
       font-size: 12px;
       font-family: sans-serif;
       text-align: center;
     ">No completed tasks yet!</div>`
-  : completedTasks.map(task => `
+        : completedTasks.map(task => `
       <div style="
         color: black;
         font-size: 12px;
@@ -312,11 +317,11 @@ export class OlinScene extends Phaser.Scene {
       // reward logic goes here later
     };
 
-complete_session_delete_button.on('pointerdown', () => {
-  completed_session.setVisible(false);
-  complete_session_delete_button.setVisible(false);
-  completedSessionEl.style.display = 'none';
-});
+    complete_session_delete_button.on('pointerdown', () => {
+      completed_session.setVisible(false);
+      complete_session_delete_button.setVisible(false);
+      completedSessionEl.style.display = 'none';
+    });
 
     start_study_button.setInteractive({ useHandCursor: true });
     start_study_button.on('pointerdown', () => {
@@ -333,6 +338,7 @@ complete_session_delete_button.on('pointerdown', () => {
       taskBar.destroy();
       hidePickTime();
       if (statusTween) statusTween.stop();
+      multiplayer.destroy();
     });
   }
 }
