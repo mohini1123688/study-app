@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 
 type Task = { id: number; text: string; completed: boolean };
 
-export function setupTaskBar(scene: Phaser.Scene, task_bar: Phaser.GameObjects.Sprite) {
+export function setupTaskBar(scene: Phaser.Scene, task_bar: Phaser.GameObjects.Sprite, onTaskCompleted?: () => void) {
   const MAX_TASKS = 7;
 
   const getTasks = (): Task[] => scene.registry.get('taskList') ?? [];
@@ -150,23 +150,28 @@ export function setupTaskBar(scene: Phaser.Scene, task_bar: Phaser.GameObjects.S
   const handleTaskListClick = (e: MouseEvent) => {
     const target = e.target as HTMLElement;
 
-    // checkmark toggle
     if (target.classList.contains('task-check')) {
       const id = Number(target.dataset.id);
       const tasks = getTasks();
       const task = tasks.find(t => t.id === id);
       if (!task) return;
 
-      // small pop animation on the checkmark itself before re-render wipes it
       target.style.transform = 'scale(1.4)';
       setTimeout(() => {
         target.style.transform = 'scale(1)';
       }, 100);
 
+      const wasCompleted = task.completed; // capture before flipping
+
       const updated = tasks.map(t =>
         t.id === id ? { ...t, completed: !t.completed } : t
       );
       setTasks(updated);
+
+      // only fire on the incomplete -> complete transition, not on uncheck
+      if (!wasCompleted) {
+        onTaskCompleted?.();
+      }
       return;
     }
 

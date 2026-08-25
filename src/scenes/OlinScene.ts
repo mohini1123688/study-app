@@ -36,7 +36,7 @@ export class OlinScene extends Phaser.Scene {
 
     this.load.aseprite('numbers', 'assets/numbers.png', 'assets/numbers.json');
 
-    this.load.aseprite('bear_says_yay', 'assets/bear_says_yay!.png', 'assets/bear_says_yay!.json');
+    this.load.aseprite('bear_says_yay', 'assets/bear_says_yay.png', 'assets/bear_says_yay.json');
     this.load.image('bear_says_yay_bg', 'assets/bear_saya_yay_bg.png')
 
 
@@ -86,12 +86,6 @@ export class OlinScene extends Phaser.Scene {
     const twenty_five_button = this.add.sprite(104, 67, 'twenty_five_button')
     const sixty_min_button = this.add.sprite(104, 83, 'sixty_min_button')
     const custom_min_button = this.add.sprite(104, 99, 'custom_min_button')
-
-    console.log(this.anims.exists('bear_says_yay'));
-    const bear_says_yay_bg = this.add.image(131, 100, 'bear_says_yay_bg')
-    const bear_says_yay = this.add.sprite(140, 105, 'bear_says_yay')
-    bear_says_yay.play({ key: 'bear_says_yay', repeat: -1 });
-    bear_says_yay.setVisible(true);
 
     const completed_session = this.add.image(104, 75, 'completed_session');
     completed_session.setVisible(false);
@@ -185,7 +179,24 @@ export class OlinScene extends Phaser.Scene {
     };
 
     // TASK BAR — logic lives in taskBar.ts, this just wires it up
-    const taskBar = setupTaskBar(this, task_bar);
+    this.anims.createFromAseprite('bear_says_yay');
+
+const bear_says_yay_bg = this.add.image(131, 100, 'bear_says_yay_bg');
+const bear_says_yay = this.add.sprite(133, 106, 'bear_says_yay');
+bear_says_yay_bg.setVisible(false);
+bear_says_yay.setVisible(false);
+
+const playCompletionAnimation = () => {
+  bear_says_yay_bg.setVisible(true);
+  bear_says_yay.setVisible(true);
+  bear_says_yay.play({ key: 'bear_says_yay', repeat: 0 }); // play once, not looped
+
+  bear_says_yay.once('animationcomplete', () => {
+    bear_says_yay_bg.setVisible(false);
+    bear_says_yay.setVisible(false);
+  });
+};
+    const taskBar = setupTaskBar(this, task_bar, playCompletionAnimation);
 
     // STUDY SESSION CODE
     showPickTime()

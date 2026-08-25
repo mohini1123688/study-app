@@ -75,11 +75,12 @@
  "meta": {
   "app": "https://www.aseprite.org/",
   "version": "1.3.18.1-arm64",
-  "image": "bear_says_yay!.png",
+  "image": "bear_says_yay.png",
   "format": "RGBA8888",
   "size": { "w": 74, "h": 23 },
   "scale": "1",
   "frameTags": [
+   { "name": "bear_says_yay", "from": 0, "to": 7, "direction": "forward", "color": "#000000ff" }
   ],
   "layers": [
    { "name": "Layer 1", "opacity": 255, "blendMode": "normal" }
