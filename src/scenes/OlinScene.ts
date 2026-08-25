@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { setupTaskBar } from './taskBar';
 import { setupMultiplayer } from './multiplayer';
+import { setupTimerDisplay, setupPickedTimeDisplay } from './timerDisplay';
 
 export class OlinScene extends Phaser.Scene {
   constructor() {
@@ -33,9 +34,15 @@ export class OlinScene extends Phaser.Scene {
     this.load.image('completed_session', 'assets/completed_session.png')
     this.load.image('complete_session_delete_button', 'assets/complete_session_delete_button.png')
 
+    this.load.aseprite('numbers', 'assets/numbers.png', 'assets/numbers.json');
+
+    this.load.aseprite('bear_says_yay', 'assets/bear_says_yay!.png', 'assets/bear_says_yay!.json');
+    this.load.image('bear_says_yay_bg', 'assets/bear_saya_yay_bg.png')
+
+
   }
   create() {
-   
+
     const bg = this.add.image(104, 64, 'olin_only_room');
     bg.setOrigin(0.5);
 
@@ -80,6 +87,12 @@ export class OlinScene extends Phaser.Scene {
     const sixty_min_button = this.add.sprite(104, 83, 'sixty_min_button')
     const custom_min_button = this.add.sprite(104, 99, 'custom_min_button')
 
+    console.log(this.anims.exists('bear_says_yay'));
+    const bear_says_yay_bg = this.add.image(131, 100, 'bear_says_yay_bg')
+    const bear_says_yay = this.add.sprite(140, 105, 'bear_says_yay')
+    bear_says_yay.play({ key: 'bear_says_yay', repeat: -1 });
+    bear_says_yay.setVisible(true);
+
     const completed_session = this.add.image(104, 75, 'completed_session');
     completed_session.setVisible(false);
     const complete_session_delete_button = this.add.image(82, 44, 'complete_session_delete_button');
@@ -110,8 +123,8 @@ export class OlinScene extends Phaser.Scene {
       pickTimeOpen = true;
     };
 
-    const time_picked = this.add.sprite(155, 6, 'time_picked')
-    time_picked.setVisible(false);
+    const timerDisplay = setupTimerDisplay(this, 155, 6);
+    const pickedTimeDisplay = setupPickedTimeDisplay(this, 155, 6);
 
     twenty_five_button.setInteractive({ useHandCursor: true });
     sixty_min_button.setInteractive({ useHandCursor: true });
@@ -126,10 +139,10 @@ export class OlinScene extends Phaser.Scene {
     });
 
     twenty_five_button.on('pointerdown', () => {
-      time_picked.setVisible(true);
+      pickedTimeDisplay.setNumber(25);
+      pickedTimeDisplay.setVisible(true);
       this.registry.set('timeSelected', 'twenty_five');
-      time_picked.setFrame(0);
-      hidePickTime()
+      hidePickTime();
     });
 
     sixty_min_button.on('pointerover', () => {
@@ -141,10 +154,10 @@ export class OlinScene extends Phaser.Scene {
     });
 
     sixty_min_button.on('pointerdown', () => {
-      time_picked.setVisible(true);
+      pickedTimeDisplay.setNumber(60);
+      pickedTimeDisplay.setVisible(true);
       this.registry.set('timeSelected', 'sixty_min');
-      time_picked.setFrame(1);
-      hidePickTime()
+      hidePickTime();
     });
 
     custom_min_button.on('pointerover', () => {
@@ -213,30 +226,37 @@ export class OlinScene extends Phaser.Scene {
     };
 
     const startStudySession = () => {
-      const timeSelected = this.registry.get('timeSelected') ?? 'twenty_five';
-      const durationMs = 15000;
+  const timeSelected = this.registry.get('timeSelected') ?? 'twenty_five';
+  const totalSeconds = timeSelected === 'sixty_min' ? 60 * 60 : 25 * 60;
+  const durationMs = 15000;
 
-      studyRunning = true;
-      start_study_button.setFrame(1);
-      status_bar.setFrame(0);
+  studyRunning = true;
+  start_study_button.setFrame(1);
+  status_bar.setFrame(0);
 
-      showRandomStudyItem();
-      player.play({ key: typingKey, repeat: -1 });
+  pickedTimeDisplay.setVisible(false); // add this — picked time disappears once started
+  timerDisplay.setVisible(true);
+  timerDisplay.updateDigits(totalSeconds);
 
-      const progress = { frame: 0 };
-      statusTween = this.tweens.add({
-        targets: progress,
-        frame: 30,
-        duration: durationMs,
-        ease: 'Linear',
-        onUpdate: () => {
-          status_bar.setFrame(Math.floor(progress.frame));
-        },
-        onComplete: () => {
-          finishStudySession();
-        },
-      });
-    };
+  showRandomStudyItem();
+  player.play({ key: typingKey, repeat: -1 });
+
+  const progress = { frame: 0 };
+  statusTween = this.tweens.add({
+    targets: progress,
+    frame: 30,
+    duration: durationMs,
+    ease: 'Linear',
+    onUpdate: () => {
+      status_bar.setFrame(Math.floor(progress.frame));
+      const remainingSeconds = totalSeconds * (1 - progress.frame / 30);
+      timerDisplay.updateDigits(remainingSeconds);
+    },
+    onComplete: () => {
+      finishStudySession();
+    },
+  });
+};
 
     const stopStudySession = () => {
       if (statusTween) {
@@ -246,6 +266,7 @@ export class OlinScene extends Phaser.Scene {
       studyRunning = false;
       start_study_button.setFrame(0);
       status_bar.setFrame(0);
+      timerDisplay.setVisible(false);
 
       hideAllStudyItems();
       player.play({ key: animKey, repeat: -1 }); // back to idle
@@ -305,6 +326,7 @@ export class OlinScene extends Phaser.Scene {
       studyRunning = false;
       start_study_button.setFrame(0);
       statusTween = null;
+      timerDisplay.setVisible(false);
 
       hideAllStudyItems();
       player.play({ key: danceKey, repeat: -1 }); // back to idle
