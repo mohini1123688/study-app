@@ -2,7 +2,8 @@ import Phaser from 'phaser';
 
 type Task = { id: number; text: string; completed: boolean };
 
-export function setupTaskBar(scene: Phaser.Scene, task_bar: Phaser.GameObjects.Sprite, onTaskCompleted?: () => void) {
+export function setupTaskBar(scene: Phaser.Scene, task_bar: Phaser.GameObjects.Sprite, onTaskCompleted?: () => void,
+isBlocked?: () => boolean) {
   const MAX_TASKS = 7;
 
   const getTasks = (): Task[] => scene.registry.get('taskList') ?? [];
@@ -246,6 +247,7 @@ export function setupTaskBar(scene: Phaser.Scene, task_bar: Phaser.GameObjects.S
   });
 
   task_bar.on('pointerdown', () => {
+    if (isBlocked?.()) return;
     if (getTasks().length >= MAX_TASKS) {
       return;
     }
@@ -285,6 +287,13 @@ export function setupTaskBar(scene: Phaser.Scene, task_bar: Phaser.GameObjects.S
   positionOverlay();
   renderTaskList();
 
+  const setOverlayVisible = (visible: boolean) => {
+    overlayEl.style.display = visible ? 'flex' : 'none';
+    if (!visible) {
+      hideTaskInput(); // also close the input box if it was open
+    }
+  };
+
   // Call this from the scene's shutdown handler to clean up DOM listeners.
   const destroy = () => {
     document.removeEventListener('mousedown', handleOutsideClick);
@@ -294,5 +303,5 @@ export function setupTaskBar(scene: Phaser.Scene, task_bar: Phaser.GameObjects.S
     overlayEl.innerHTML = '';
   };
 
-  return { destroy };
+  return { destroy, setVisible: setOverlayVisible };
 }

@@ -39,7 +39,7 @@ export class OlinScene extends Phaser.Scene {
     this.load.aseprite('bear_says_yay', 'assets/bear_says_yay.png', 'assets/bear_says_yay.json');
     this.load.image('bear_says_yay_bg', 'assets/bear_saya_yay_bg.png')
 
-
+    this.load.image('menu_button', 'assets/menu_button.png')
   }
   create() {
 
@@ -51,6 +51,20 @@ export class OlinScene extends Phaser.Scene {
     home_button.setInteractive({ useHandCursor: true });
     home_button.on('pointerdown', () => {
       this.scene.start('WelcomeScene');
+    });
+
+    const menu_button = this.add.image(202, 6, 'menu_button');
+    menu_button.setInteractive({ useHandCursor: true });
+
+    let menuOpen = true; // UI starts visible
+
+    menu_button.on('pointerdown', () => {
+      menuOpen = !menuOpen;
+
+      task_bar.setVisible(menuOpen);
+      start_study_button.setVisible(menuOpen);
+      clock_button.setVisible(menuOpen);
+      taskBar.setVisible(menuOpen); 
     });
 
 
@@ -181,22 +195,23 @@ export class OlinScene extends Phaser.Scene {
     // TASK BAR — logic lives in taskBar.ts, this just wires it up
     this.anims.createFromAseprite('bear_says_yay');
 
-const bear_says_yay_bg = this.add.image(131, 100, 'bear_says_yay_bg');
-const bear_says_yay = this.add.sprite(133, 106, 'bear_says_yay');
-bear_says_yay_bg.setVisible(false);
-bear_says_yay.setVisible(false);
-
-const playCompletionAnimation = () => {
-  bear_says_yay_bg.setVisible(true);
-  bear_says_yay.setVisible(true);
-  bear_says_yay.play({ key: 'bear_says_yay', repeat: 0 }); // play once, not looped
-
-  bear_says_yay.once('animationcomplete', () => {
+    const bear_says_yay_bg = this.add.image(131, 100, 'bear_says_yay_bg');
+    const bear_says_yay = this.add.sprite(133, 106, 'bear_says_yay');
     bear_says_yay_bg.setVisible(false);
     bear_says_yay.setVisible(false);
-  });
-};
-    const taskBar = setupTaskBar(this, task_bar, playCompletionAnimation);
+
+    const playCompletionAnimation = () => {
+      bear_says_yay_bg.setVisible(true);
+      bear_says_yay.setVisible(true);
+      bear_says_yay.play({ key: 'bear_says_yay', repeat: 0 }); // play once, not looped
+
+      bear_says_yay.once('animationcomplete', () => {
+        bear_says_yay_bg.setVisible(false);
+        bear_says_yay.setVisible(false);
+      });
+    };
+
+    const taskBar = setupTaskBar(this, task_bar, playCompletionAnimation, () => pickTimeOpen);
 
     // STUDY SESSION CODE
     showPickTime()
@@ -237,37 +252,37 @@ const playCompletionAnimation = () => {
     };
 
     const startStudySession = () => {
-  const timeSelected = this.registry.get('timeSelected') ?? 'twenty_five';
-  const totalSeconds = timeSelected === 'sixty_min' ? 60 * 60 : 25 * 60;
-  const durationMs = 15000;
+      const timeSelected = this.registry.get('timeSelected') ?? 'twenty_five';
+      const totalSeconds = timeSelected === 'sixty_min' ? 60 * 60 : 25 * 60;
+      const durationMs = 15000;
 
-  studyRunning = true;
-  start_study_button.setFrame(1);
-  status_bar.setFrame(0);
+      studyRunning = true;
+      start_study_button.setFrame(1);
+      status_bar.setFrame(0);
 
-  pickedTimeDisplay.setVisible(false); // add this — picked time disappears once started
-  timerDisplay.setVisible(true);
-  timerDisplay.updateDigits(totalSeconds);
+      pickedTimeDisplay.setVisible(false); // add this — picked time disappears once started
+      timerDisplay.setVisible(true);
+      timerDisplay.updateDigits(totalSeconds);
 
-  showRandomStudyItem();
-  player.play({ key: typingKey, repeat: -1 });
+      showRandomStudyItem();
+      player.play({ key: typingKey, repeat: -1 });
 
-  const progress = { frame: 0 };
-  statusTween = this.tweens.add({
-    targets: progress,
-    frame: 30,
-    duration: durationMs,
-    ease: 'Linear',
-    onUpdate: () => {
-      status_bar.setFrame(Math.floor(progress.frame));
-      const remainingSeconds = totalSeconds * (1 - progress.frame / 30);
-      timerDisplay.updateDigits(remainingSeconds);
-    },
-    onComplete: () => {
-      finishStudySession();
-    },
-  });
-};
+      const progress = { frame: 0 };
+      statusTween = this.tweens.add({
+        targets: progress,
+        frame: 30,
+        duration: durationMs,
+        ease: 'Linear',
+        onUpdate: () => {
+          status_bar.setFrame(Math.floor(progress.frame));
+          const remainingSeconds = totalSeconds * (1 - progress.frame / 30);
+          timerDisplay.updateDigits(remainingSeconds);
+        },
+        onComplete: () => {
+          finishStudySession();
+        },
+      });
+    };
 
     const stopStudySession = () => {
       if (statusTween) {
@@ -357,13 +372,15 @@ const playCompletionAnimation = () => {
     });
 
     start_study_button.setInteractive({ useHandCursor: true });
-    start_study_button.on('pointerdown', () => {
-      if (studyRunning) {
-        stopStudySession();
-      } else {
-        startStudySession();
-      }
-    });
+start_study_button.on('pointerdown', () => {
+  if (pickTimeOpen) return; // block starting a session while the popup is up
+
+  if (studyRunning) {
+    stopStudySession();
+  } else {
+    startStudySession();
+  }
+});
 
     this.events.once('shutdown', () => {
       completedSessionEl.style.display = 'none';
