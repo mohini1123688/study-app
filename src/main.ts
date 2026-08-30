@@ -6,6 +6,7 @@ import { BDScene } from './scenes/BDScene';
 import { DormScene } from './scenes/DormScene';
 import { ChooseStudySpotScene } from './scenes/ChooseStudySpotScene';
 import { ShopScene } from './scenes/ShopScene';
+import { OnboardingScene } from './scenes/OnboardingScene';
 
 new Phaser.Game({
   type: Phaser.AUTO,
@@ -17,6 +18,7 @@ new Phaser.Game({
   backgroundColor: '#f4f1ea',
   scene: [
     WelcomeScene,
+    OnboardingScene,
     CharacterCustomizeScene,
     ChooseStudySpotScene,
     OlinScene,
