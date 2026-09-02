@@ -21,12 +21,23 @@ export class WelcomeScene extends Phaser.Scene {
     this.scene.start('OnboardingScene'); // fresh signup -> collect username/major/year
   }
   });
-
   this.anims.createFromAseprite('washu');
   const bg = this.add.sprite(104, 64, 'washu');
   bg.setOrigin(0.5);
 
   bg.play({ key: 'intro', repeat: -1, frameRate: 6 });
+
+  const logoutButton = this.add.text(5, 5, 'LOG OUT', {
+  fontFamily: 'VT323',
+  fontSize: '10px',
+  color: '#ff0000',
+}).setInteractive({ useHandCursor: true });
+
+logoutButton.on('pointerdown', async () => {
+  await supabase.auth.signOut();
+  window.location.reload();
+});
+
 
   const startButton = this.add.sprite(104, 15, 'start_btn', 0); // 0 = starting frame index
   startButton.setInteractive({ useHandCursor: true });

@@ -20,7 +20,7 @@ export class OnboardingScene extends Phaser.Scene {
         ">
           <h2 style="margin: 0 0 12px; font-size: 18px; text-align: center;">Set up your profile</h2>
 
-          <input id="ob-username" type="text" placeholder="username (required)" style="
+          <input id="ob-username" type="text" placeholder="username (required)" maxlength="15" style="
             width: 100%; margin-bottom: 8px; padding: 4px; font-family: inherit; font-size: 14px;
             box-sizing: border-box;
           " />
@@ -59,64 +59,74 @@ export class OnboardingScene extends Phaser.Scene {
       `;
 
       const errorEl = document.getElementById('ob-error') as HTMLDivElement;
-      const usernameEl = document.getElementById('ob-username') as HTMLInputElement;
-      const displayNameEl = document.getElementById('ob-displayname') as HTMLInputElement;
-const majorEl = document.getElementById('ob-major') as HTMLSelectElement; // was HTMLInputElement      const yearEl = document.getElementById('ob-year') as HTMLSelectElement;
-      const submitEl = document.getElementById('ob-submit') as HTMLButtonElement;
+const usernameEl = document.getElementById('ob-username') as HTMLInputElement;
+const displayNameEl = document.getElementById('ob-displayname') as HTMLInputElement;
+const majorEl = document.getElementById('ob-major') as HTMLSelectElement;
+const yearEl = document.getElementById('ob-year') as HTMLSelectElement;
+const submitEl = document.getElementById('ob-submit') as HTMLButtonElement;
 
-      submitEl.addEventListener('click', async () => {
-        errorEl.textContent = '';
-        const username = usernameEl.value.trim();
+submitEl.addEventListener('click', async () => {
 
-        if (!username) {
-          errorEl.textContent = 'Username is required.';
-          return;
-        }
+  errorEl.textContent = '';
+  const username = usernameEl.value.trim();
 
-        submitEl.disabled = true;
-        submitEl.textContent = 'Saving...';
+  if (!username) {
+    errorEl.textContent = 'Username is required.';
+    return;
+  }
 
-        const { data: userData } = await supabase.auth.getUser();
-        const user = userData.user;
+  submitEl.disabled = true;
+  submitEl.textContent = 'Saving...';
 
-        if (!user) {
-          errorEl.textContent = 'Something went wrong — please try logging in again.';
-          submitEl.disabled = false;
-          submitEl.textContent = 'Continue';
-          return;
-        }
+  const { data: userData } = await supabase.auth.getUser();
+  const user = userData.user;
 
-        const { error } = await supabase.from('profiles').insert({
-          id: user.id,
-          username,
-          display_name: displayNameEl.value.trim() || null,
-          const majorEl = document.getElementById('ob-major') as HTMLSelectElement,
-const yearEl = document.getElementById('ob-year') as HTMLSelectElement,
-        });
+  if (!user) {
+    errorEl.textContent = 'Something went wrong — please try logging in again.';
+    submitEl.disabled = false;
+    submitEl.textContent = 'Continue';
+    return;
+  }
 
-        submitEl.disabled = false;
-        submitEl.textContent = 'Continue';
+  const { error } = await supabase.from('profiles').insert({
+    id: user.id,
+    username,
+    display_name: displayNameEl.value.trim() || null,
+    major: majorEl.value || null,
+    year: yearEl.value || null,
+  });
 
-        if (error) {
-          // unique constraint violation on username, or other db error
-          if (error.message.includes('duplicate') || error.message.includes('unique')) {
-            errorEl.textContent = 'That username is already taken.';
-          } else {
-            errorEl.textContent = error.message;
-          }
-          return;
-        }
+  submitEl.disabled = false;
+  submitEl.textContent = 'Continue';
 
-        overlayEl.style.display = 'none';
-        overlayEl.innerHTML = '';
-        this.scene.start('WelcomeScene');
-      });
-    };
+  if (error) {
+    if (error.message.includes('duplicate') || error.message.includes('unique')) {
+      errorEl.textContent = 'That username is already taken.';
+    } else {
+      errorEl.textContent = error.message;
+    }
+    return;
+  }
 
+  overlayEl.style.display = 'none';
+  overlayEl.innerHTML = '';
+  this.registry.set('username', username); // cache immediately after signup, skip the first fetch too
+  this.scene.start('WelcomeScene');
+
+if (!username) {
+  errorEl.textContent = 'Username is required.';
+  return;
+}
+
+if (username.length > 15) {
+  errorEl.textContent = 'Username must be 15 characters or less.';
+  return;
+}
+});
+    }
     render();
-
-    overlayEl.style.left = '50%';
-    overlayEl.style.top = '50%';
+    overlayEl.style.left = '325px';
+    overlayEl.style.top = '200px';
     overlayEl.style.transform = 'translate(-50%, -50%)';
     overlayEl.style.display = 'block';
 

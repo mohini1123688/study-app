@@ -2,6 +2,8 @@ import Phaser from 'phaser';
 import { setupTaskBar } from './taskBar';
 import { setupMultiplayer } from './multiplayer';
 import { setupTimerDisplay, setupPickedTimeDisplay } from './timerDisplay';
+import { supabase } from '../supabaseClient';
+import { setupOwnUsernameLabel } from './usernameLabel';
 
 export class OlinScene extends Phaser.Scene {
   constructor() {
@@ -77,10 +79,38 @@ export class OlinScene extends Phaser.Scene {
     const clock_button = this.add.image(199, 117, 'clock_button')
 
     const chosenKey = this.registry.get('selectedCharacter') ?? 'girl_player';
-    const multiplayer = setupMultiplayer(this, chosenKey);
+
+let multiplayer: { destroy: () => void } | null = null; // declared outside, so shutdown can reach it
+
+const getUsername = async (): Promise<string> => {
+  const cached = this.registry.get('username');
+  if (cached) return cached;
+
+  const { data: userData } = await supabase.auth.getUser();
+  const user = userData.user;
+  if (!user) return '???';
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('username')
+    .eq('id', user.id)
+    .single();
+
+  if (profile) {
+    this.registry.set('username', profile.username);
+    return profile.username;
+  }
+  return '???';
+};
+
+getUsername().then((username) => {
+  multiplayer = setupMultiplayer(this, chosenKey, username); // assign, don't re-declare with const
+});
 
 
     const player = this.add.sprite(64, 35, chosenKey);
+    const usernameLabel = setupOwnUsernameLabel(this, player);
+
     const animKey = chosenKey === 'girl_player' ? 'pick_me' : 'pick_me_boy';
     const typingKey = chosenKey === 'girl_player' ? 'typing' : 'typing_boy';
     const danceKey = chosenKey === 'girl_player' ? 'dance' : 'dancing_boy';
@@ -388,7 +418,8 @@ start_study_button.on('pointerdown', () => {
       taskBar.destroy();
       hidePickTime();
       if (statusTween) statusTween.stop();
-      multiplayer.destroy();
+      multiplayer?.destroy();
+      usernameLabel.destroy();
     });
   }
 }
