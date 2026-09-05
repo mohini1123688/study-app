@@ -3,9 +3,16 @@ import { setupPickedTimeDisplay } from './timerDisplay';
 
 export function setupPickTimeMenu(scene: Phaser.Scene) {
   const time_pop_up = scene.add.image(104, 75, 'time_pop_up');
+  time_pop_up.setDepth(5);
+
   const twenty_five_button = scene.add.sprite(104, 67, 'twenty_five_button');
+  twenty_five_button.setDepth(5);
+
   const sixty_min_button = scene.add.sprite(104, 83, 'sixty_min_button');
+  sixty_min_button.setDepth(5);
+
   const custom_min_button = scene.add.sprite(104, 99, 'custom_min_button');
+  custom_min_button.setDepth(5);
 
   time_pop_up.setVisible(false);
   twenty_five_button.setVisible(false);

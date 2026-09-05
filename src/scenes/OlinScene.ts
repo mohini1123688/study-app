@@ -49,6 +49,7 @@ export class OlinScene extends Phaser.Scene {
   create() {
     const bg = this.add.image(104, 64, 'olin_only_room');
     bg.setOrigin(0.5);
+    bg.setDepth(-10);
 
     const home_button = this.add.image(5, 123, 'home_button');
     home_button.setInteractive({ useHandCursor: true });
@@ -62,24 +63,20 @@ export class OlinScene extends Phaser.Scene {
     const clock_button = this.add.image(199, 117, 'clock_button');
 
     const table = this.add.image(104, 50, 'olin_table');
+    table.setDepth(1);
     const light = this.add.image(104, 42, 'light');
+    light.setDepth(2)
     const table2 = this.add.image(104, 80, 'olin_table');
+    table2.setDepth(1);
     const light2 = this.add.image(104, 72, 'light');
+    light2.setDepth(2)
     const table3 = this.add.image(104, 110, 'olin_table');
+    table3.setDepth(1);
     const light3 = this.add.image(104, 102, 'light');
-
-    // --- PLAYER ---
-    const chosenKey = this.registry.get('selectedCharacter') ?? 'girl_player';
-    const player = this.add.sprite(64, 35, chosenKey); // temp position, moved once desk is assigned
-    const usernameLabel = setupOwnUsernameLabel(this, player);
-
-    const animKey = chosenKey === 'girl_player' ? 'pick_me' : 'pick_me_boy';
-    const typingKey = chosenKey === 'girl_player' ? 'typing' : 'typing_boy';
-    const danceKey = chosenKey === 'girl_player' ? 'dance' : 'dancing_boy';
-    player.play({ key: animKey, repeat: -1 });
+    light3.setDepth(2)
 
     // --- MULTIPLAYER ---
-    let multiplayer: { destroy: () => void } | null = null;
+    let multiplayer: ReturnType<typeof setupMultiplayer> | null = null;
 
     const getUsername = async (): Promise<string> => {
       const cached = this.registry.get('username');
@@ -102,9 +99,22 @@ export class OlinScene extends Phaser.Scene {
       return '???';
     };
 
+    // --- PLAYER ---
+    const chosenKey = this.registry.get('selectedCharacter') ?? 'girl_player';
+    const player = this.add.sprite(64, 35, chosenKey); // temp position, moved once desk is assigned
+    const usernameLabel = setupOwnUsernameLabel(this, player);
+
+    const animKey = chosenKey === 'girl_player' ? 'pick_me' : 'pick_me_boy';
+    const typingKey = chosenKey === 'girl_player' ? 'typing' : 'typing_boy';
+    const danceKey = chosenKey === 'girl_player' ? 'dance' : 'dancing_boy';
+    player.play({ key: animKey, repeat: -1 });
+    multiplayer?.sendAnimState('idle');
+
     getUsername().then((username) => {
-      multiplayer = setupMultiplayer(this, chosenKey, username, player);
-    });
+  multiplayer = setupMultiplayer(this, chosenKey, username, player, () => {
+    usernameLabel.reposition();
+  });
+});
 
     // --- MENU TOGGLE ---
     const menu_button = this.add.image(202, 6, 'menu_button');
@@ -183,6 +193,7 @@ export class OlinScene extends Phaser.Scene {
 
       showRandomStudyItem();
       player.play({ key: typingKey, repeat: -1 });
+      multiplayer?.sendAnimState('typing');
 
       const progress = { frame: 0 };
       statusTween = this.tweens.add({
@@ -213,6 +224,8 @@ export class OlinScene extends Phaser.Scene {
 
       hideAllStudyItems();
       player.play({ key: animKey, repeat: -1 });
+      multiplayer?.sendAnimState('idle');
+
     };
 
     const finishStudySession = () => {
@@ -223,6 +236,7 @@ export class OlinScene extends Phaser.Scene {
 
       hideAllStudyItems();
       player.play({ key: danceKey, repeat: -1 });
+      multiplayer?.sendAnimState('dance');
 
       completedSession.show();
     };
