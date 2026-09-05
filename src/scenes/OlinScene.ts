@@ -1,9 +1,12 @@
 import Phaser from 'phaser';
 import { setupTaskBar } from './taskBar';
 import { setupMultiplayer } from './multiplayer';
-import { setupTimerDisplay, setupPickedTimeDisplay } from './timerDisplay';
-import { supabase } from '../supabaseClient';
+import { setupTimerDisplay } from './timerDisplay';
+import { setupPickTimeMenu } from './pickTimeMenu';
+import { setupCompletedSession } from './completedSession';
+import { setupCompletionAnimation } from './completionAnimation';
 import { setupOwnUsernameLabel } from './usernameLabel';
+import { supabase } from '../supabaseClient';
 
 export class OlinScene extends Phaser.Scene {
   constructor() {
@@ -44,71 +47,30 @@ export class OlinScene extends Phaser.Scene {
     this.load.image('menu_button', 'assets/menu_button.png')
   }
   create() {
-
     const bg = this.add.image(104, 64, 'olin_only_room');
     bg.setOrigin(0.5);
 
     const home_button = this.add.image(5, 123, 'home_button');
-
     home_button.setInteractive({ useHandCursor: true });
     home_button.on('pointerdown', () => {
       this.scene.start('WelcomeScene');
     });
 
-    const menu_button = this.add.image(202, 6, 'menu_button');
-    menu_button.setInteractive({ useHandCursor: true });
+    const status_bar = this.add.sprite(104, 8, 'status_bar');
+    const task_bar = this.add.sprite(213, 80, 'task_bar');
+    const start_study_button = this.add.sprite(178, 117, 'start_study_button');
+    const clock_button = this.add.image(199, 117, 'clock_button');
 
-    let menuOpen = true; // UI starts visible
+    const table = this.add.image(104, 50, 'olin_table');
+    const light = this.add.image(104, 42, 'light');
+    const table2 = this.add.image(104, 80, 'olin_table');
+    const light2 = this.add.image(104, 72, 'light');
+    const table3 = this.add.image(104, 110, 'olin_table');
+    const light3 = this.add.image(104, 102, 'light');
 
-    menu_button.on('pointerdown', () => {
-      menuOpen = !menuOpen;
-
-      task_bar.setVisible(menuOpen);
-      start_study_button.setVisible(menuOpen);
-      clock_button.setVisible(menuOpen);
-      taskBar.setVisible(menuOpen); 
-    });
-
-
-    const status_bar = this.add.sprite(104, 8, 'status_bar')
-
-    const task_bar = this.add.sprite(213, 80, 'task_bar')
-    const pick_time_button = this.add.sprite(201, 106, 'pick_time')
-    pick_time_button.setVisible(false);
-    const start_study_button = this.add.sprite(178, 117, 'start_study_button')
-    const clock_button = this.add.image(199, 117, 'clock_button')
-
+    // --- PLAYER ---
     const chosenKey = this.registry.get('selectedCharacter') ?? 'girl_player';
-
-let multiplayer: { destroy: () => void } | null = null; // declared outside, so shutdown can reach it
-
-const getUsername = async (): Promise<string> => {
-  const cached = this.registry.get('username');
-  if (cached) return cached;
-
-  const { data: userData } = await supabase.auth.getUser();
-  const user = userData.user;
-  if (!user) return '???';
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('username')
-    .eq('id', user.id)
-    .single();
-
-  if (profile) {
-    this.registry.set('username', profile.username);
-    return profile.username;
-  }
-  return '???';
-};
-
-getUsername().then((username) => {
-  multiplayer = setupMultiplayer(this, chosenKey, username); // assign, don't re-declare with const
-});
-
-
-    const player = this.add.sprite(64, 35, chosenKey);
+    const player = this.add.sprite(64, 35, chosenKey); // temp position, moved once desk is assigned
     const usernameLabel = setupOwnUsernameLabel(this, player);
 
     const animKey = chosenKey === 'girl_player' ? 'pick_me' : 'pick_me_boy';
@@ -116,155 +78,80 @@ getUsername().then((username) => {
     const danceKey = chosenKey === 'girl_player' ? 'dance' : 'dancing_boy';
     player.play({ key: animKey, repeat: -1 });
 
-    const table = this.add.image(104, 50, 'olin_table');
-    const light = this.add.image(104, 42, 'light');
+    // --- MULTIPLAYER ---
+    let multiplayer: { destroy: () => void } | null = null;
 
-    const table2 = this.add.image(104, 80, 'olin_table');
-    const light2 = this.add.image(104, 72, 'light');
+    const getUsername = async (): Promise<string> => {
+      const cached = this.registry.get('username');
+      if (cached) return cached;
 
-    const table3 = this.add.image(104, 110, 'olin_table');
-    const light3 = this.add.image(104, 102, 'light');
+      const { data: userData } = await supabase.auth.getUser();
+      const user = userData.user;
+      if (!user) return '???';
 
-    const time_pop_up = this.add.image(104, 75, 'time_pop_up')
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('username')
+        .eq('id', user.id)
+        .single();
 
-    const twenty_five_button = this.add.sprite(104, 67, 'twenty_five_button')
-    const sixty_min_button = this.add.sprite(104, 83, 'sixty_min_button')
-    const custom_min_button = this.add.sprite(104, 99, 'custom_min_button')
-
-    const completed_session = this.add.image(104, 75, 'completed_session');
-    completed_session.setVisible(false);
-    const complete_session_delete_button = this.add.image(82, 44, 'complete_session_delete_button');
-    complete_session_delete_button.setInteractive({ useHandCursor: true });
-    complete_session_delete_button.setVisible(false)
-    complete_session_delete_button.setDepth(101);
-
-    time_pop_up.setVisible(false)
-    twenty_five_button.setVisible(false)
-    sixty_min_button.setVisible(false)
-    custom_min_button.setVisible(false)
-
-    let pickTimeOpen = true;
-
-    const hidePickTime = () => {
-      time_pop_up.setVisible(false)
-      twenty_five_button.setVisible(false)
-      sixty_min_button.setVisible(false)
-      custom_min_button.setVisible(false)
-      pickTimeOpen = false;
+      if (profile) {
+        this.registry.set('username', profile.username);
+        return profile.username;
+      }
+      return '???';
     };
 
-    const showPickTime = () => {
-      time_pop_up.setVisible(true)
-      twenty_five_button.setVisible(true)
-      sixty_min_button.setVisible(true)
-      custom_min_button.setVisible(true)
-      pickTimeOpen = true;
-    };
-
-    const timerDisplay = setupTimerDisplay(this, 155, 6);
-    const pickedTimeDisplay = setupPickedTimeDisplay(this, 155, 6);
-
-    twenty_five_button.setInteractive({ useHandCursor: true });
-    sixty_min_button.setInteractive({ useHandCursor: true });
-    custom_min_button.setInteractive({ useHandCursor: true });
-
-    twenty_five_button.on('pointerover', () => {
-      twenty_five_button.setFrame(1);
+    getUsername().then((username) => {
+      multiplayer = setupMultiplayer(this, chosenKey, username, player);
     });
 
-    twenty_five_button.on('pointerout', () => {
-      twenty_five_button.setFrame(0);
+    // --- MENU TOGGLE ---
+    const menu_button = this.add.image(202, 6, 'menu_button');
+    menu_button.setInteractive({ useHandCursor: true });
+    let menuOpen = true;
+
+    menu_button.on('pointerdown', () => {
+      menuOpen = !menuOpen;
+      task_bar.setVisible(menuOpen);
+      start_study_button.setVisible(menuOpen);
+      clock_button.setVisible(menuOpen);
+      taskBar.setVisible(menuOpen);
     });
 
-    twenty_five_button.on('pointerdown', () => {
-      pickedTimeDisplay.setNumber(25);
-      pickedTimeDisplay.setVisible(true);
-      this.registry.set('timeSelected', 'twenty_five');
-      hidePickTime();
-    });
-
-    sixty_min_button.on('pointerover', () => {
-      sixty_min_button.setFrame(1);
-    });
-
-    sixty_min_button.on('pointerout', () => {
-      sixty_min_button.setFrame(0);
-    });
-
-    sixty_min_button.on('pointerdown', () => {
-      pickedTimeDisplay.setNumber(60);
-      pickedTimeDisplay.setVisible(true);
-      this.registry.set('timeSelected', 'sixty_min');
-      hidePickTime();
-    });
-
-    custom_min_button.on('pointerover', () => {
-      custom_min_button.setFrame(1);
-    });
-
-    custom_min_button.on('pointerout', () => {
-      custom_min_button.setFrame(0);
-    });
-    //No pointer down for custom...havent deisgned that yet!
-
-    // --- WORLD -> SCREEN HELPER ---
-    // Converts a world-space (game coordinate) point to real screen CSS pixels,
-    // accounting for whatever the canvas is actually rendered at (zoom + any
-    // additional CSS scaling), rather than hardcoding a zoom constant.
-    const worldToScreen = (worldX: number, worldY: number) => {
-      const canvas = this.game.canvas;
-      const rect = canvas.getBoundingClientRect();
-      const sx = rect.width / this.scale.width;
-      const sy = rect.height / this.scale.height;
-      return {
-        x: rect.left + worldX * sx,
-        y: rect.top + worldY * sy,
-      };
-    };
-
-    // TASK BAR — logic lives in taskBar.ts, this just wires it up
-    this.anims.createFromAseprite('bear_says_yay');
-
-    const bear_says_yay_bg = this.add.image(131, 100, 'bear_says_yay_bg');
-    const bear_says_yay = this.add.sprite(133, 106, 'bear_says_yay');
-    bear_says_yay_bg.setVisible(false);
-    bear_says_yay.setVisible(false);
-
-    const playCompletionAnimation = () => {
-      bear_says_yay_bg.setVisible(true);
-      bear_says_yay.setVisible(true);
-      bear_says_yay.play({ key: 'bear_says_yay', repeat: 0 }); // play once, not looped
-
-      bear_says_yay.once('animationcomplete', () => {
-        bear_says_yay_bg.setVisible(false);
-        bear_says_yay.setVisible(false);
-      });
-    };
-
-    const taskBar = setupTaskBar(this, task_bar, playCompletionAnimation, () => pickTimeOpen);
-
-    // STUDY SESSION CODE
-    showPickTime()
+    // --- PICK-TIME MENU (extracted) ---
+    const pickTime = setupPickTimeMenu(this);
 
     clock_button.setInteractive({ useHandCursor: true });
     clock_button.on('pointerdown', () => {
       if (!studyRunning) {
-        if (pickTimeOpen) {
-          hidePickTime();
+        if (pickTime.isOpen()) {
+          pickTime.hide();
         } else {
-          showPickTime();
+          pickTime.show();
         }
       }
     });
 
+    // --- TIMER DISPLAY (full MM:SS countdown, shown during a session) ---
+    const timerDisplay = setupTimerDisplay(this, 155, 6);
+
+    // --- COMPLETION ANIMATION (extracted) ---
+    const completionAnimation = setupCompletionAnimation(this);
+
+    // --- TASK BAR ---
+    const taskBar = setupTaskBar(this, task_bar, completionAnimation.play, () => pickTime.isOpen());
+
+    // --- COMPLETED SESSION SCREEN (extracted) ---
+    const completedSession = setupCompletedSession(this);
+
+    // --- STUDY SESSION ---
     let statusTween: Phaser.Tweens.Tween | null = null;
     let studyRunning = false;
-
 
     const paper_and_pencil = this.add.image(65, 45, 'paper_and_pencil');
     const laptop = this.add.image(64, 46, 'laptop');
     const book = this.add.image(64, 46, 'book');
-
     paper_and_pencil.setVisible(false);
     laptop.setVisible(false);
     book.setVisible(false);
@@ -290,7 +177,7 @@ getUsername().then((username) => {
       start_study_button.setFrame(1);
       status_bar.setFrame(0);
 
-      pickedTimeDisplay.setVisible(false); // add this — picked time disappears once started
+      pickTime.pickedTimeDisplay.setVisible(false);
       timerDisplay.setVisible(true);
       timerDisplay.updateDigits(totalSeconds);
 
@@ -325,58 +212,8 @@ getUsername().then((username) => {
       timerDisplay.setVisible(false);
 
       hideAllStudyItems();
-      player.play({ key: animKey, repeat: -1 }); // back to idle
+      player.play({ key: animKey, repeat: -1 });
     };
-
-    const completedSessionEl = document.getElementById('completed-session-overlay') as HTMLDivElement;
-
-    const positionCompletedOverlay = () => {
-      const originX = completed_session.x - completed_session.displayWidth / 2;
-      const originY = completed_session.y - completed_session.displayHeight / 2;
-
-      const { x, y } = worldToScreen(originX, originY);
-      completedSessionEl.style.left = `${x}px`;
-      completedSessionEl.style.top = `${y}px`;
-
-      const canvas = this.game.canvas;
-      const rect = canvas.getBoundingClientRect();
-      const sx = rect.width / this.scale.width;
-      const sy = rect.height / this.scale.height;
-
-      // match this to completed_session's actual displayed size
-      completedSessionEl.style.width = `${completed_session.displayWidth * sx}px`;
-      completedSessionEl.style.height = `${completed_session.displayHeight * sy}px`;
-      completedSessionEl.style.paddingTop = '18px';
-
-      completedSessionEl.style.display = 'flex';
-      completedSessionEl.style.flexDirection = 'column';
-      completedSessionEl.style.justifyContent = 'center';
-    };
-
-    const renderCompletedList = () => {
-      const tasks = this.registry.get('taskList') ?? [];
-      const completedTasks = tasks.filter((t: { completed: boolean }) => t.completed);
-
-      completedSessionEl.innerHTML = completedTasks.length === 0
-        ? `<div style="
-      color: black;
-      font-size: 12px;
-      font-family: sans-serif;
-      text-align: center;
-    ">No completed tasks yet!</div>`
-        : completedTasks.map(task => `
-      <div style="
-        color: black;
-        font-size: 12px;
-        font-family: sans-serif;
-        text-align: center;
-        margin-bottom: 4px;
-      ">
-        ${task.text}
-      </div>
-    `).join('');
-    };
-
 
     const finishStudySession = () => {
       studyRunning = false;
@@ -385,38 +222,26 @@ getUsername().then((username) => {
       timerDisplay.setVisible(false);
 
       hideAllStudyItems();
-      player.play({ key: danceKey, repeat: -1 }); // back to idle
+      player.play({ key: danceKey, repeat: -1 });
 
-      completed_session.setVisible(true)
-      complete_session_delete_button.setVisible(true)
-      positionCompletedOverlay();
-      renderCompletedList();
-
-      // reward logic goes here later
+      completedSession.show();
     };
 
-    complete_session_delete_button.on('pointerdown', () => {
-      completed_session.setVisible(false);
-      complete_session_delete_button.setVisible(false);
-      completedSessionEl.style.display = 'none';
+    start_study_button.setInteractive({ useHandCursor: true });
+    start_study_button.on('pointerdown', () => {
+      if (pickTime.isOpen()) return;
+
+      if (studyRunning) {
+        stopStudySession();
+      } else {
+        startStudySession();
+      }
     });
 
-    start_study_button.setInteractive({ useHandCursor: true });
-start_study_button.on('pointerdown', () => {
-  if (pickTimeOpen) return; // block starting a session while the popup is up
-
-  if (studyRunning) {
-    stopStudySession();
-  } else {
-    startStudySession();
-  }
-});
-
     this.events.once('shutdown', () => {
-      completedSessionEl.style.display = 'none';
-      completedSessionEl.innerHTML = '';
+      completedSession.destroy();
       taskBar.destroy();
-      hidePickTime();
+      pickTime.hide();
       if (statusTween) statusTween.stop();
       multiplayer?.destroy();
       usernameLabel.destroy();
