@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 
 export function setupCompletedSession(scene: Phaser.Scene) {
   const completed_session = scene.add.image(104, 75, 'completed_session');
+  completed_session.setDepth(50);
   completed_session.setVisible(false);
 
   const complete_session_delete_button = scene.add.image(82, 44, 'complete_session_delete_button');

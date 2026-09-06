@@ -1,0 +1,34 @@
+{ "frames": {
+   "0": {
+    "frame": { "x": 0, "y": 0, "w": 15, "h": 16 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 15, "h": 16 },
+    "sourceSize": { "w": 15, "h": 16 },
+    "duration": 100
+   },
+   "1": {
+    "frame": { "x": 15, "y": 0, "w": 15, "h": 16 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 15, "h": 16 },
+    "sourceSize": { "w": 15, "h": 16 },
+    "duration": 100
+   }
+ },
+ "meta": {
+  "app": "https://www.aseprite.org/",
+  "version": "1.3.18.3-arm64",
+  "image": "new_friends_button.png",
+  "format": "RGBA8888",
+  "size": { "w": 30, "h": 16 },
+  "scale": "1",
+  "frameTags": [
+  ],
+  "layers": [
+   { "name": "Layer 1", "opacity": 255, "blendMode": "normal" }
+  ],
+  "slices": [
+  ]
+ }
+}

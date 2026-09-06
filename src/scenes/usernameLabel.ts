@@ -12,7 +12,8 @@ const worldToScreen = (scene: Phaser.Scene, worldX: number, worldY: number) => {
   };
 };
 
-const offsetY = -12; // TUNE — distance above the sprite, in world units
+const offsetX = 1; // TUNE — shifts right in world units; negative shifts left
+const offsetY = -9; // TUNE — distance above the sprite, in world units
 
 // Creates a single label above a given sprite, showing the given text.
 // Exposes reposition() so callers can re-anchor it if the sprite ever moves
@@ -31,7 +32,7 @@ export function createUsernameLabel(scene: Phaser.Scene, targetSprite: Phaser.Ga
   labelEl.style.whiteSpace = 'nowrap';
 
   const reposition = () => {
-    const { x, y } = worldToScreen(scene, targetSprite.x, targetSprite.y + offsetY);
+    const { x, y } = worldToScreen(scene, targetSprite.x + offsetX, targetSprite.y + offsetY);
     labelEl.style.left = `${x}px`;
     labelEl.style.top = `${y}px`;
     labelEl.style.transform = 'translate(-50%, -100%)';

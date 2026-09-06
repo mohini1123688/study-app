@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { supabase } from '../supabaseClient';
 import { setupAuthOverlay } from './authOverlay';
+import { setupFriendsPopup } from './friendsPopup';
 
 
 export class WelcomeScene extends Phaser.Scene {
@@ -13,8 +14,18 @@ export class WelcomeScene extends Phaser.Scene {
     this.load.aseprite('log_in_menu', 'assets/log_in_menu.png', 'assets/log_in_menu.json');
     this.load.aseprite('log_in_submit_button.png', 'assets/log_in_submit_button.png', 'assets/log_in_submit_button.json');
     this.load.image('heatmap_calendar', 'assets/heatmap_calendar.png');
+    this.load.aseprite('new_friends_button', 'assets/new_friends_button.png', 'assets/new_friends_button.json');
   }
   create() {
+  let isLoggedIn = false;
+
+  supabase.auth.getSession().then(({ data }) => {
+    if (data.session) {
+      isLoggedIn = true;
+    }
+  });
+
+  const friendsPopup = setupFriendsPopup(this);
 
   const authOverlay = setupAuthOverlay(this, ({ isNewUser }) => {
   if (isNewUser) {
@@ -35,8 +46,25 @@ export class WelcomeScene extends Phaser.Scene {
 
 logoutButton.on('pointerdown', async () => {
   await supabase.auth.signOut();
+  this.registry.remove('username'); // clear stale cache so the next account doesn't inherit it
   window.location.reload();
 });
+
+const friendsButton = this.add.sprite(197, 10, 'new_friends_button');
+friendsButton.setInteractive({ useHandCursor: true });
+
+friendsButton.on('pointerover', () => {
+    friendsButton.setFrame(1);
+  });
+
+  friendsButton.on('pointerout', () => {
+    friendsButton.setFrame(0);
+  });
+
+friendsButton.on('pointerdown', () => {
+    if (!isLoggedIn) return;
+    friendsPopup.show();
+  });
 
 
   const startButton = this.add.sprite(104, 15, 'start_btn', 0); // 0 = starting frame index
@@ -58,6 +86,7 @@ logoutButton.on('pointerdown', async () => {
 
   this.events.once('shutdown', () => {
     authOverlay.destroy();
+    friendsPopup.destroy();
   });
 }
 

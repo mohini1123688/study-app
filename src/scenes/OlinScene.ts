@@ -78,26 +78,38 @@ export class OlinScene extends Phaser.Scene {
     // --- MULTIPLAYER ---
     let multiplayer: ReturnType<typeof setupMultiplayer> | null = null;
 
-    const getUsername = async (): Promise<string> => {
-      const cached = this.registry.get('username');
-      if (cached) return cached;
+  const getUsernameAndUserId = async (): Promise<{ username: string; userId: string }> => {
+  const { data: userData } = await supabase.auth.getUser();
+  const user = userData.user;
+  if (!user) return { username: '???', userId: '' };
 
-      const { data: userData } = await supabase.auth.getUser();
-      const user = userData.user;
-      if (!user) return '???';
+  const cachedUsername = this.registry.get('username');
+  const cachedUserId = this.registry.get('cachedUserId');
 
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('username')
-        .eq('id', user.id)
-        .single();
+  // only trust the cache if it belongs to the currently logged-in user
+  if (cachedUsername && cachedUserId === user.id) {
+    return { username: cachedUsername, userId: user.id };
+  }
 
-      if (profile) {
-        this.registry.set('username', profile.username);
-        return profile.username;
-      }
-      return '???';
-    };
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('username')
+    .eq('id', user.id)
+    .single();
+
+  if (profile) {
+    this.registry.set('username', profile.username);
+    this.registry.set('cachedUserId', user.id);
+    return { username: profile.username, userId: user.id };
+  }
+  return { username: '???', userId: user.id };
+};
+
+getUsernameAndUserId().then(({ username, userId }) => {
+  multiplayer = setupMultiplayer(this, chosenKey, username, userId, player, () => {
+    usernameLabel.reposition();
+  });
+});
 
     // --- PLAYER ---
     const chosenKey = this.registry.get('selectedCharacter') ?? 'girl_player';
@@ -110,11 +122,6 @@ export class OlinScene extends Phaser.Scene {
     player.play({ key: animKey, repeat: -1 });
     multiplayer?.sendAnimState('idle');
 
-    getUsername().then((username) => {
-  multiplayer = setupMultiplayer(this, chosenKey, username, player, () => {
-    usernameLabel.reposition();
-  });
-});
 
     // --- MENU TOGGLE ---
     const menu_button = this.add.image(202, 6, 'menu_button');
@@ -160,23 +167,37 @@ export class OlinScene extends Phaser.Scene {
     let studyRunning = false;
 
     const paper_and_pencil = this.add.image(65, 45, 'paper_and_pencil');
+    paper_and_pencil.setDepth(2);
     const laptop = this.add.image(64, 46, 'laptop');
+    laptop.setDepth(2);
     const book = this.add.image(64, 46, 'book');
+    book.setDepth(2);
     paper_and_pencil.setVisible(false);
     laptop.setVisible(false);
     book.setVisible(false);
 
     const studyItems = [paper_and_pencil, laptop, book];
 
-    const hideAllStudyItems = () => {
-      studyItems.forEach(item => item.setVisible(false));
-    };
+    const itemKeyMap = new Map<Phaser.GameObjects.Image, 'paper' | 'laptop' | 'book'>([
+  [paper_and_pencil, 'paper'],
+  [laptop, 'laptop'],
+  [book, 'book'],
+]);
 
-    const showRandomStudyItem = () => {
-      hideAllStudyItems();
-      const randomItem = Phaser.Utils.Array.GetRandom(studyItems);
-      randomItem.setVisible(true);
-    };
+const hideAllStudyItems = () => {
+  studyItems.forEach(item => item.setVisible(false));
+  multiplayer?.sendStudyItem('none');
+};
+
+const showRandomStudyItem = () => {
+  hideAllStudyItems();
+  const randomItem = Phaser.Utils.Array.GetRandom(studyItems);
+  randomItem.setPosition(player.x + 0, player.y + 11);
+  randomItem.setVisible(true);
+  const itemName = itemKeyMap.get(randomItem)!;
+  console.log('Sending study item:', itemName); // TEMP
+  multiplayer?.sendStudyItem(itemName);
+};
 
     const startStudySession = () => {
       const timeSelected = this.registry.get('timeSelected') ?? 'twenty_five';

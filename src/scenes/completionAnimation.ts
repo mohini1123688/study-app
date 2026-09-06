@@ -4,7 +4,9 @@ export function setupCompletionAnimation(scene: Phaser.Scene) {
   scene.anims.createFromAseprite('bear_says_yay');
 
   const bg = scene.add.image(131, 100, 'bear_says_yay_bg');
+  bg.setDepth(50);
   const bear = scene.add.sprite(133, 106, 'bear_says_yay');
+  bear.setDepth(51);
   bg.setVisible(false);
   bear.setVisible(false);
 

@@ -25,6 +25,15 @@ Explicit depth is required — do not rely on add-order, it breaks the moment an
 - `50` — popups (pick-time menu, etc.)
 - `100+` — top-priority overlays (delete buttons on top of other overlays, etc.)
 
+**Local vs. remote objects must share the same depth.** A multiplayer feature that
+mirrors a local object (e.g. study items shown above a remote player, same as they show
+above the local player) needs its remote-side sprite created at the *same* depth as the
+local one. It's easy to add a new remote sprite with a different/default depth than its
+local counterpart — the sync logic can be completely correct (state updates, listeners
+firing, sprite created) while the result is still invisible because it's layered behind
+something else. If a synced feature "isn't showing up" but logs confirm the data is
+arriving correctly, check depth before suspecting the networking code.
+
 ## HTML overlays (task list, popups, username labels, etc.)
 Phaser sprites and HTML overlay elements are two separate layers with zero built-in
 relationship. Every feature that has both needs explicit handling for:
@@ -113,3 +122,21 @@ redeploy on Render to take effect live.
 Most visual placement (offsets, spacing, hitboxes) is done via named constants marked
 `// TUNE` at the top of the relevant function, in world units (matching the 208×128
 internal resolution), not raw screen pixels. Change the constant, save, reload, adjust.
+
+## Testing multiplayer locally
+Supabase sessions live in localStorage, which is **shared across normal tabs in the same
+browser**. Logging in as a second account in another tab silently overwrites the first
+tab's session — both tabs become the same user, producing mismatched/incoherent test data.
+Always test two accounts using a normal window + an incognito window (or two different
+browsers / Chrome profiles), never two normal tabs.
+
+## Presence tracking
+Room presence is stored in Supabase's `room_presence` table (written by the Colyseus
+server via `supabaseAdmin`), NOT via Colyseus room metadata or a lobby room. That approach
+was tried and abandoned — the lobby's join/snapshot/leave cycle raced badly against
+scene transitions and produced unreliable, intermittently empty results. A plain database
+read is deterministic and matches how the rest of the app already fetches data.
+
+Killing the server with Ctrl+C skips `onDispose`, orphaning presence rows that reference
+rooms which no longer exist. `app.config.ts` wipes the table on startup to handle this in
+dev; that wipe would be incorrect with multiple concurrent server instances in production.
