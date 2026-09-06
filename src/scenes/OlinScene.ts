@@ -187,18 +187,13 @@ export class OlinScene extends Phaser.Scene {
       }
     };
 
-    const onTaskCompleted = () => {
-      completionAnimation.play();
-      recordDailyCompletion();
-    };
-
     // --- TASK BAR ---
     const taskBar = setupTaskBar(
   this,
   task_bar,
-  completionAnimation.play, // always plays, every completion
+  completionAnimation.play,
   () => pickTime.isOpen(),
-  recordDailyCompletion // new 5th param — only called once per task
+  recordDailyCompletion
 );
 
     // --- COMPLETED SESSION SCREEN (extracted) ---

@@ -98,6 +98,7 @@ friendsButton.on('pointerdown', () => {
 });
 
   const heatmap_calendar = this.add.image(22, 108, 'heatmap_calendar');
+  heatmap_calendar.setVisible(true);
   const heatmap = setupHeatmapCalendar(this);
 
 const loadRealHeatmapData = async () => {

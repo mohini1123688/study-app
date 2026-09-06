@@ -5,10 +5,7 @@ type AuthResult = {
   isNewUser: boolean;
 };
 
-export function setupAuthOverlay(
-  scene: Phaser.Scene,
-  onSuccess: (result: AuthResult) => void
-) {
+export function setupAuthOverlay(_scene: Phaser.Scene, onSuccess: (result: AuthResult) => void) {
   const overlayEl = document.getElementById('auth-overlay') as HTMLDivElement;
   let mode: 'login' | 'signup' = 'login';
 

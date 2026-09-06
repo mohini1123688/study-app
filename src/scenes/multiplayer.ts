@@ -131,15 +131,15 @@ joinPromise.then((joinedRoom) => {
     room = joinedRoom;
     console.log('Connected to OlinRoom! sessionId:', room.sessionId);
 
-    const $ = getStateCallbacks(room);
+    const $ = getStateCallbacks(room) as any;
 
-    $(room.state).players.onAdd((playerState: any, sessionId: string) => {
-      addRemotePlayer(sessionId, playerState, $);
-    });
+$(room.state).players.onAdd((playerState: any, sessionId: string) => {
+  addRemotePlayer(sessionId, playerState, $);
+});
 
-    $(room.state).players.onRemove((_playerState: any, sessionId: string) => {
-      removeRemotePlayer(sessionId);
-    });
+$(room.state).players.onRemove((_playerState: any, sessionId: string) => {
+  removeRemotePlayer(sessionId);
+});
 
     room.onLeave((code) => {
       console.log('Left OlinRoom, code:', code);
