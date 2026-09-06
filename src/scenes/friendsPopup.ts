@@ -196,12 +196,17 @@ export function setupFriendsPopup(scene: Phaser.Scene) {
   };
 
   const show = () => {
-    render();
-    overlayEl.style.right = '50px';
-    overlayEl.style.bottom = '400px';
-    overlayEl.style.transform = 'translate(-50%, -50%)';
-    overlayEl.style.display = 'block';
-  };
+  render();
+
+  const canvas = scene.game.canvas;
+  const rect = canvas.getBoundingClientRect();
+
+  overlayEl.style.left = `${rect.right - 290}px`; // TUNE — 250 = how far in from canvas's right edge
+  overlayEl.style.top = `${rect.top + 120}px`; // TUNE — offset down from canvas's top edge
+  overlayEl.style.right = 'auto'; // clear so left doesn't fight with a leftover right value
+  overlayEl.style.bottom = 'auto';
+  overlayEl.style.display = 'block';
+};
 
   const hide = () => {
     overlayEl.style.display = 'none';

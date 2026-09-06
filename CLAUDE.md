@@ -140,3 +140,28 @@ read is deterministic and matches how the rest of the app already fetches data.
 Killing the server with Ctrl+C skips `onDispose`, orphaning presence rows that reference
 rooms which no longer exist. `app.config.ts` wipes the table on startup to handle this in
 dev; that wipe would be incorrect with multiple concurrent server instances in production.
+
+## Heatmap calendar
+- `heatmapCalendar.ts` — places 30 fill-in sprites over the `heatmap_calendar` art in
+  WelcomeScene, one per day, frame set by `countToFrame(count)`. `DAY_POSITIONS` follows
+  the calendar's actual (uneven) row layout, not a plain grid — found via the same
+  click-logger technique used for desk coordinates.
+- `daily_completions` table (Supabase): one row per user per day (`user_id`, `date`,
+  `count`), upserted every time a task is checked off in `OlinScene` via
+  `recordDailyCompletion()`, wired through `taskBar`'s `onTaskCompleted` callback.
+- `studyItems.ts` — extracted from OlinScene: paper/laptop/book visibility + multiplayer sync.
+
+## Silent no-ops from optional chaining (`?.`)
+A call like `multiplayer?.sendAnimState('idle')` fails silently if `multiplayer` is
+`null` at that moment — no error, just does nothing. This hid a real bug: the call sat
+right after `player.play(...)`, outside the async `.then()` block where `multiplayer`
+actually gets assigned, so it always ran while `multiplayer` was still `null`. `?.` is
+correct for genuinely optional calls, but it can mask timing bugs where something should
+have run and silently didn't — if a synced feature "does nothing," check whether the
+object it's called on was actually initialized yet at that point in execution.
+
+## Declare-before-use ordering in async setup blocks
+Async callbacks (`.then(...)`) can reference variables declared *after* them in the file
+and still technically work, since the callback only runs later — but it reads as broken
+and invites exactly the bug above. Keep synchronous dependencies (like `player`,
+`chosenKey`) declared before any async block that captures them, even when not required.

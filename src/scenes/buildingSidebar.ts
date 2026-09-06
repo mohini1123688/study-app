@@ -67,12 +67,17 @@ export function setupBuildingSidebar(scene: Phaser.Scene) {
   };
 
   const show = (roomName: string, userId: string, sceneKey: string, buildingLabel: string) => {
-    render(roomName, userId, sceneKey, buildingLabel);
-    overlayEl.style.right = '10px';
-    overlayEl.style.top = '50%';
-    overlayEl.style.transform = 'translateY(-50%)';
-    overlayEl.style.display = 'block';
-  };
+  render(roomName, userId, sceneKey, buildingLabel);
+
+  const canvas = scene.game.canvas;
+  const rect = canvas.getBoundingClientRect();
+
+  overlayEl.style.left = `${rect.right - 290}px`; // TUNE — 250 = distance in from canvas's right edge
+  overlayEl.style.top = `${rect.top + 120}px`; // TUNE — offset down from canvas's top edge
+  overlayEl.style.right = 'auto';
+  overlayEl.style.bottom = 'auto';
+  overlayEl.style.display = 'block';
+};
 
   const hide = () => {
     overlayEl.style.display = 'none';

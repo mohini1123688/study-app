@@ -1,9 +1,14 @@
 import Phaser from 'phaser';
 
-type Task = { id: number; text: string; completed: boolean };
+type Task = { id: number; text: string; completed: boolean; countedForHeatmap: boolean };
 
-export function setupTaskBar(scene: Phaser.Scene, task_bar: Phaser.GameObjects.Sprite, onTaskCompleted?: () => void,
-isBlocked?: () => boolean) {
+export function setupTaskBar(
+  scene: Phaser.Scene,
+  task_bar: Phaser.GameObjects.Sprite,
+  onTaskCompleted?: () => void,
+  isBlocked?: () => boolean,
+  onFirstTimeCompleted?: () => void
+) {
   const MAX_TASKS = 7;
 
   const getTasks = (): Task[] => scene.registry.get('taskList') ?? [];
@@ -162,19 +167,29 @@ isBlocked?: () => boolean) {
         target.style.transform = 'scale(1)';
       }, 100);
 
-      const wasCompleted = task.completed; // capture before flipping
+      const wasCompleted = task.completed;
+  const nowCompleting = !wasCompleted; // true only when going incomplete -> complete
 
-      const updated = tasks.map(t =>
-        t.id === id ? { ...t, completed: !t.completed } : t
-      );
-      setTasks(updated);
+  const updated = tasks.map(t =>
+    t.id === id
+      ? {
+          ...t,
+          completed: !t.completed,
+          // once counted, stays counted — toggling back and forth never re-adds
+          countedForHeatmap: t.countedForHeatmap || (nowCompleting && !t.countedForHeatmap),
+        }
+      : t
+  );
+  setTasks(updated);
 
-      // only fire on the incomplete -> complete transition, not on uncheck
-      if (!wasCompleted) {
-        onTaskCompleted?.();
-      }
-      return;
+  if (nowCompleting) {
+    onTaskCompleted?.(); // bear — every time
+    if (!task.countedForHeatmap) {
+      onFirstTimeCompleted?.(); // heatmap increment — only once per task, ever
     }
+  }
+  return;
+}
 
     // delete button — target could be the wrapper, the img, or the x span,
     // so walk up to find the wrapper with the data-id on it
@@ -272,7 +287,7 @@ isBlocked?: () => boolean) {
       const tasks = getTasks();
 
       if (text.length > 0 && tasks.length < MAX_TASKS) {
-        setTasks([...tasks, { id: Date.now(), text, completed: false }]);
+        setTasks([...tasks, { id: Date.now(), text, completed: false, countedForHeatmap: false }]);
       }
 
       inputEl.value = '';

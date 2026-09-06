@@ -6,7 +6,9 @@ import { setupPickTimeMenu } from './pickTimeMenu';
 import { setupCompletedSession } from './completedSession';
 import { setupCompletionAnimation } from './completionAnimation';
 import { setupOwnUsernameLabel } from './usernameLabel';
+import { setupStudyItems } from './studyItems';
 import { supabase } from '../supabaseClient';
+import { setupProfilePopup } from './profilePopup';
 
 export class OlinScene extends Phaser.Scene {
   constructor() {
@@ -65,53 +67,17 @@ export class OlinScene extends Phaser.Scene {
     const table = this.add.image(104, 50, 'olin_table');
     table.setDepth(1);
     const light = this.add.image(104, 42, 'light');
-    light.setDepth(2)
+    light.setDepth(2);
     const table2 = this.add.image(104, 80, 'olin_table');
     table2.setDepth(1);
     const light2 = this.add.image(104, 72, 'light');
-    light2.setDepth(2)
+    light2.setDepth(2);
     const table3 = this.add.image(104, 110, 'olin_table');
     table3.setDepth(1);
     const light3 = this.add.image(104, 102, 'light');
-    light3.setDepth(2)
+    light3.setDepth(2);
 
-    // --- MULTIPLAYER ---
-    let multiplayer: ReturnType<typeof setupMultiplayer> | null = null;
-
-  const getUsernameAndUserId = async (): Promise<{ username: string; userId: string }> => {
-  const { data: userData } = await supabase.auth.getUser();
-  const user = userData.user;
-  if (!user) return { username: '???', userId: '' };
-
-  const cachedUsername = this.registry.get('username');
-  const cachedUserId = this.registry.get('cachedUserId');
-
-  // only trust the cache if it belongs to the currently logged-in user
-  if (cachedUsername && cachedUserId === user.id) {
-    return { username: cachedUsername, userId: user.id };
-  }
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('username')
-    .eq('id', user.id)
-    .single();
-
-  if (profile) {
-    this.registry.set('username', profile.username);
-    this.registry.set('cachedUserId', user.id);
-    return { username: profile.username, userId: user.id };
-  }
-  return { username: '???', userId: user.id };
-};
-
-getUsernameAndUserId().then(({ username, userId }) => {
-  multiplayer = setupMultiplayer(this, chosenKey, username, userId, player, () => {
-    usernameLabel.reposition();
-  });
-});
-
-    // --- PLAYER ---
+    // --- PLAYER --- (moved above MULTIPLAYER since that block depends on these)
     const chosenKey = this.registry.get('selectedCharacter') ?? 'girl_player';
     const player = this.add.sprite(64, 35, chosenKey); // temp position, moved once desk is assigned
     const usernameLabel = setupOwnUsernameLabel(this, player);
@@ -120,8 +86,45 @@ getUsernameAndUserId().then(({ username, userId }) => {
     const typingKey = chosenKey === 'girl_player' ? 'typing' : 'typing_boy';
     const danceKey = chosenKey === 'girl_player' ? 'dance' : 'dancing_boy';
     player.play({ key: animKey, repeat: -1 });
-    multiplayer?.sendAnimState('idle');
 
+    // --- MULTIPLAYER ---
+    let multiplayer: ReturnType<typeof setupMultiplayer> | null = null;
+
+    const getUsernameAndUserId = async (): Promise<{ username: string; userId: string }> => {
+      const { data: userData } = await supabase.auth.getUser();
+      const user = userData.user;
+      if (!user) return { username: '???', userId: '' };
+
+      const cachedUsername = this.registry.get('username');
+      const cachedUserId = this.registry.get('cachedUserId');
+
+      if (cachedUsername && cachedUserId === user.id) {
+        return { username: cachedUsername, userId: user.id };
+      }
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('username')
+        .eq('id', user.id)
+        .single();
+
+      if (profile) {
+        this.registry.set('username', profile.username);
+        this.registry.set('cachedUserId', user.id);
+        return { username: profile.username, userId: user.id };
+      }
+      return { username: '???', userId: user.id };
+    };
+    const profilePopup = setupProfilePopup(this);
+
+    getUsernameAndUserId().then(({ username, userId }) => {
+  multiplayer = setupMultiplayer(this, chosenKey, username, userId, player, () => {
+    usernameLabel.reposition();
+  }, (clickedUserId, clickedCharacter) => {
+    profilePopup.showProfile(clickedUserId, clickedCharacter);
+  });
+  multiplayer.sendAnimState('idle');
+});
 
     // --- MENU TOGGLE ---
     const menu_button = this.add.image(202, 6, 'menu_button');
@@ -150,54 +153,63 @@ getUsernameAndUserId().then(({ username, userId }) => {
       }
     });
 
-    // --- TIMER DISPLAY (full MM:SS countdown, shown during a session) ---
+    // --- TIMER DISPLAY ---
     const timerDisplay = setupTimerDisplay(this, 155, 6);
 
     // --- COMPLETION ANIMATION (extracted) ---
     const completionAnimation = setupCompletionAnimation(this);
 
+    // --- DAILY COMPLETION TRACKING (for the heatmap) ---
+    const recordDailyCompletion = async () => {
+      const { data: userData } = await supabase.auth.getUser();
+      const user = userData.user;
+      if (!user) return;
+
+      const today = new Date().toISOString().split('T')[0];
+
+      const { data: existing } = await supabase
+        .from('daily_completions')
+        .select('count')
+        .eq('user_id', user.id)
+        .eq('date', today)
+        .single();
+
+      if (existing) {
+        await supabase
+          .from('daily_completions')
+          .update({ count: existing.count + 1 })
+          .eq('user_id', user.id)
+          .eq('date', today);
+      } else {
+        await supabase
+          .from('daily_completions')
+          .insert({ user_id: user.id, date: today, count: 1 });
+      }
+    };
+
+    const onTaskCompleted = () => {
+      completionAnimation.play();
+      recordDailyCompletion();
+    };
+
     // --- TASK BAR ---
-    const taskBar = setupTaskBar(this, task_bar, completionAnimation.play, () => pickTime.isOpen());
+    const taskBar = setupTaskBar(
+  this,
+  task_bar,
+  completionAnimation.play, // always plays, every completion
+  () => pickTime.isOpen(),
+  recordDailyCompletion // new 5th param — only called once per task
+);
 
     // --- COMPLETED SESSION SCREEN (extracted) ---
     const completedSession = setupCompletedSession(this);
 
+    // --- STUDY ITEMS (extracted) ---
+    const studyItems = setupStudyItems(this, player, (item) => multiplayer?.sendStudyItem(item));
+
     // --- STUDY SESSION ---
     let statusTween: Phaser.Tweens.Tween | null = null;
     let studyRunning = false;
-
-    const paper_and_pencil = this.add.image(65, 45, 'paper_and_pencil');
-    paper_and_pencil.setDepth(2);
-    const laptop = this.add.image(64, 46, 'laptop');
-    laptop.setDepth(2);
-    const book = this.add.image(64, 46, 'book');
-    book.setDepth(2);
-    paper_and_pencil.setVisible(false);
-    laptop.setVisible(false);
-    book.setVisible(false);
-
-    const studyItems = [paper_and_pencil, laptop, book];
-
-    const itemKeyMap = new Map<Phaser.GameObjects.Image, 'paper' | 'laptop' | 'book'>([
-  [paper_and_pencil, 'paper'],
-  [laptop, 'laptop'],
-  [book, 'book'],
-]);
-
-const hideAllStudyItems = () => {
-  studyItems.forEach(item => item.setVisible(false));
-  multiplayer?.sendStudyItem('none');
-};
-
-const showRandomStudyItem = () => {
-  hideAllStudyItems();
-  const randomItem = Phaser.Utils.Array.GetRandom(studyItems);
-  randomItem.setPosition(player.x + 0, player.y + 11);
-  randomItem.setVisible(true);
-  const itemName = itemKeyMap.get(randomItem)!;
-  console.log('Sending study item:', itemName); // TEMP
-  multiplayer?.sendStudyItem(itemName);
-};
 
     const startStudySession = () => {
       const timeSelected = this.registry.get('timeSelected') ?? 'twenty_five';
@@ -212,7 +224,7 @@ const showRandomStudyItem = () => {
       timerDisplay.setVisible(true);
       timerDisplay.updateDigits(totalSeconds);
 
-      showRandomStudyItem();
+      studyItems.showRandom();
       player.play({ key: typingKey, repeat: -1 });
       multiplayer?.sendAnimState('typing');
 
@@ -243,10 +255,9 @@ const showRandomStudyItem = () => {
       status_bar.setFrame(0);
       timerDisplay.setVisible(false);
 
-      hideAllStudyItems();
+      studyItems.hideAll();
       player.play({ key: animKey, repeat: -1 });
       multiplayer?.sendAnimState('idle');
-
     };
 
     const finishStudySession = () => {
@@ -255,7 +266,7 @@ const showRandomStudyItem = () => {
       statusTween = null;
       timerDisplay.setVisible(false);
 
-      hideAllStudyItems();
+      studyItems.hideAll();
       player.play({ key: danceKey, repeat: -1 });
       multiplayer?.sendAnimState('dance');
 
@@ -280,6 +291,7 @@ const showRandomStudyItem = () => {
       if (statusTween) statusTween.stop();
       multiplayer?.destroy();
       usernameLabel.destroy();
+      profilePopup.destroy();
     });
   }
 }

@@ -24,7 +24,8 @@ export function setupMultiplayer(
   username: string,
   userId: string,
   localPlayerSprite: Phaser.GameObjects.Sprite,
-  onLocalRepositioned?: () => void
+  onLocalRepositioned?: () => void,
+  onRemotePlayerClicked?: (userId: string, character: string) => void
 ) {
   const client = new Client(import.meta.env.VITE_SERVER_URL || 'ws://localhost:2567');
   let room: Awaited<ReturnType<typeof client.joinOrCreate>> | null = null;
@@ -71,6 +72,11 @@ export function setupMultiplayer(
     sprite.play({ key: getAnimKey(playerState.character, playerState.animState), repeat: -1 });
     remotePlayers.set(sessionId, sprite);
 
+    sprite.setInteractive({ useHandCursor: true });
+sprite.on('pointerdown', () => {
+  onRemotePlayerClicked?.(playerState.userId, playerState.character);
+});
+
     const label = createUsernameLabel(scene, sprite, playerState.username || '???');
     remoteLabels.set(sessionId, label);
 
@@ -85,6 +91,7 @@ export function setupMultiplayer(
     $(playerState).listen('studyItem', (newItem: string) => {
       updateRemoteStudyItem(sessionId, sprite, newItem);
     });
+  
   };
 
   const removeRemotePlayer = (sessionId: string) => {
