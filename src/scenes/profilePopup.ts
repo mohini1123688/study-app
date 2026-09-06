@@ -15,12 +15,39 @@ const SCHOOL_LABELS: Record<string, string> = {
   samfox: 'Samfox',
 };
 
+const dateKey = (d: Date) => d.toISOString().split('T')[0];
+
+// Counts consecutive days (ending today, or yesterday if today has no
+// completions yet — so the streak doesn't reset mid-day) with count > 0.
+const computeStreak = async (userId: string): Promise<number> => {
+  const { data } = await supabase
+    .from('daily_completions')
+    .select('date, count')
+    .eq('user_id', userId)
+    .gt('count', 0);
+
+  const activeDates = new Set((data ?? []).map((row: any) => row.date));
+
+  let streak = 0;
+  const cursor = new Date();
+  if (!activeDates.has(dateKey(cursor))) {
+    cursor.setDate(cursor.getDate() - 1); // give today a grace period
+  }
+
+  while (activeDates.has(dateKey(cursor))) {
+    streak++;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+
+  return streak;
+};
+
 export function setupProfilePopup(scene: Phaser.Scene) {
   const bg = scene.add.image(28, 38, 'profile_pop_up');
   bg.setDepth(50);
   bg.setVisible(false);
 
-  const characterSprite = scene.add.sprite(13, 37, 'girl_player'); // TUNE position
+  const characterSprite = scene.add.sprite(12, 38, 'girl_player'); // TUNE position
   characterSprite.setDepth(51);
   characterSprite.setVisible(false);
 
@@ -51,13 +78,14 @@ export function setupProfilePopup(scene: Phaser.Scene) {
   };
 
   const getFriendStatus = async (myId: string, otherId: string) => {
-    const { data } = await supabase
-      .from('friend_requests')
-      .select('id, requester_id, addressee_id, status')
-      .or(`and(requester_id.eq.${myId},addressee_id.eq.${otherId}),and(requester_id.eq.${otherId},addressee_id.eq.${myId})`)
-      .maybeSingle();
-    return data;
-  };
+  const { data } = await supabase
+    .from('friend_requests')
+    .select('id, requester_id, addressee_id, status')
+    .or(`and(requester_id.eq.${myId},addressee_id.eq.${otherId}),and(requester_id.eq.${otherId},addressee_id.eq.${myId})`)
+    .order('status', { ascending: true }) // 'accepted' sorts before 'pending' alphabetically
+    .limit(1);
+  return data?.[0] ?? null;
+};
 
   const renderFriendControls = async (myId: string, otherUserId: string) => {
     const controlsEl = document.getElementById('profile-friend-controls') as HTMLDivElement;
@@ -72,13 +100,14 @@ export function setupProfilePopup(scene: Phaser.Scene) {
       return;
     }
 
+    // status text — matches the font size/style of the school/major/year fields
     if (row.status === 'accepted') {
-      controlsEl.innerHTML = `<div style="text-align: center; font-size: 12px; white-space: nowrap;">You are friends</div>`;
+      controlsEl.innerHTML = `<div style="font-size: 12px; white-space: nowrap;">You are friends</div>`;
       return;
     }
 
     if (row.status === 'pending' && row.requester_id === myId) {
-      controlsEl.innerHTML = `<div style="text-align: center; color: #666;">Request sent</div>`;
+      controlsEl.innerHTML = `<div style="font-size: 12px; white-space: nowrap;">Request sent</div>`;
       return;
     }
 
@@ -94,15 +123,28 @@ export function setupProfilePopup(scene: Phaser.Scene) {
     controlsEl.innerHTML = ''; // declined or other state — show nothing
   };
 
-  const render = (profile: ProfileData) => {
+const render = (profile: ProfileData, streak: number) => {
     overlayEl.innerHTML = `
       <div style="position: relative; width: 100%; height: 100%; font-family: 'VT323', monospace;">
-        <div style="position: absolute; left: 30px; top: 10px; font-size: 14px;">${profile.username}</div>
-        <div style="position: absolute; left: 60px; top: 35px; font-size: 12px;">${profile.school ? SCHOOL_LABELS[profile.school] ?? profile.school : ''}</div>
-        <div style="position: absolute; left: 60px; top: 55px; font-size: 12px;">${profile.major ?? ''}</div>
-        <div style="position: absolute; left: 60px; top: 75px; font-size: 12px;">${profile.year ?? ''}</div>
-        <div id="profile-friend-controls" style="position: absolute; left: 20px; bottom: 15px; width: calc(100% - 40px);"></div>
-        <button id="profile-close" style="position: absolute; right: -4px; top: 0px; cursor: pointer; font-family: inherit;">✕</button>
+        <div style="position: absolute; left: 19px; top: 10px; font-size: 14px; font-weight: bold;">${profile.username}</div>
+        <div style="
+          position: absolute;
+          left: 60px;
+          top: 30px;
+          width: calc(100% - 70px);
+          display: flex;
+          flex-direction: column;
+          gap: 5px;
+          font-size: 12px;
+          line-height: 1;
+        ">
+          <div>${profile.school ? SCHOOL_LABELS[profile.school] ?? profile.school : ''}</div>
+          <div>${profile.major ?? ''}</div>
+          <div>${profile.year ?? ''}</div>
+          <div style="font-weight: bold;">Streak: ${streak}</div>
+        </div>
+        <div id="profile-friend-controls" style="position: absolute; left: 20px; bottom: 12px; width: calc(100% - 40px);"></div>
+        <button id="profile-close" style="position: absolute; right: 8px; top: 8px; cursor: pointer; font-family: inherit;">✕</button>
       </div>
     `;
     document.getElementById('profile-close')!.addEventListener('click', hide);
@@ -126,15 +168,50 @@ export function setupProfilePopup(scene: Phaser.Scene) {
     const resolvedCharacter = character ?? scene.registry.get('selectedCharacter') ?? 'girl_player';
     const idleAnim = resolvedCharacter === 'girl_player' ? 'pick_me' : 'pick_me_boy';
 
+    const isSelf = myId === targetUserId;
+
+    // Decide which of the three backgrounds to use:
+    //   profile_pop_up  — own profile (no friend controls at all)
+    //   profile_pop_up2 — a button renders (send request / accept request)
+    //   profile_pop_up3 — status text only (you are friends / request sent)
+    let friendRow: Awaited<ReturnType<typeof getFriendStatus>> | null = null;
+    let variant: 'plain' | 'button' | 'status' = 'plain';
+
+    if (!isSelf && myId) {
+      friendRow = await getFriendStatus(myId, targetUserId);
+
+      if (!friendRow || (friendRow.status === 'pending' && friendRow.addressee_id === myId)) {
+        variant = 'button'; // send request, or accept an incoming one
+      } else if (friendRow.status === 'accepted' || (friendRow.status === 'pending' && friendRow.requester_id === myId)) {
+        variant = 'status'; // you are friends / request sent
+      }
+    }
+
+    const bgKey =
+      variant === 'button' ? 'profile_pop_up2' :
+      variant === 'status' ? 'profile_pop_up3' :
+      'profile_pop_up';
+
+    bg.setTexture(bgKey);
     bg.setVisible(true);
+
+    // TUNE — character sits in a different spot depending on which popup layout is active
+    if (variant === 'button') {
+      characterSprite.setPosition(12, 30); // profile_pop_up2 position
+    } else if (variant === 'status') {
+      characterSprite.setPosition(12, 35); // profile_pop_up3 position — TUNE
+    } else {
+      characterSprite.setPosition(12, 40); // profile_pop_up position
+    }
+
     characterSprite.setTexture(resolvedCharacter);
     characterSprite.play({ key: idleAnim, repeat: -1 });
     characterSprite.setVisible(true);
 
-    render(profile);
+    const streak = await computeStreak(targetUserId);
+    render(profile, streak);
     positionOverlay();
 
-    const isSelf = myId === targetUserId;
     const controlsEl = document.getElementById('profile-friend-controls') as HTMLDivElement;
     if (isSelf || !myId) {
       controlsEl.innerHTML = '';

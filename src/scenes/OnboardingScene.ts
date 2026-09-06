@@ -20,7 +20,7 @@ export class OnboardingScene extends Phaser.Scene {
         ">
           <h2 style="margin: 0 0 12px; font-size: 18px; text-align: center;">Set up your profile</h2>
 
-          <input id="ob-username" type="text" placeholder="username (required)" maxlength="15" style="
+          <input id="ob-username" type="text" placeholder="username (required)" maxlength="11" style="
             width: 100%; margin-bottom: 8px; padding: 4px; font-family: inherit; font-size: 14px;
             box-sizing: border-box;
           " />
@@ -34,7 +34,7 @@ export class OnboardingScene extends Phaser.Scene {
             <option value="olin">Olin (Business)</option>
             <option value="samfox">Samfox (Art & Design)</option>
           </select>
-          <input id="ob-major" type="text" placeholder="major (required)" style="
+          <input id="ob-major" type="text" placeholder="major (required)" maxlength="11" style="
             width: 100%; margin-bottom: 8px; padding: 4px; font-family: inherit; font-size: 14px;
             box-sizing: border-box;
           " />
@@ -76,8 +76,8 @@ export class OnboardingScene extends Phaser.Scene {
           return;
         }
 
-        if (username.length > 15) {
-          errorEl.textContent = 'Username must be 15 characters or less.';
+        if (username.length > 11) {
+          errorEl.textContent = 'Username must be 11 characters or less.';
           return;
         }
 
@@ -90,6 +90,11 @@ export class OnboardingScene extends Phaser.Scene {
           errorEl.textContent = 'Major is required.';
           return;
         }
+
+        if (major.length > 11) {
+  errorEl.textContent = 'Major must be 11 characters or less.';
+  return;
+}
 
         if (!year) {
           errorEl.textContent = 'Year is required.';

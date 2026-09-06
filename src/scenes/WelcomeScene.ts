@@ -21,6 +21,8 @@ export class WelcomeScene extends Phaser.Scene {
     this.load.image('log_out_button', 'assets/log_out_button.png');
     this.load.image('profile_button', 'assets/profile_button.png');
     this.load.image('profile_pop_up', 'assets/profile_pop_up.png');
+    this.load.image('profile_pop_up2', 'assets/profile_pop_up2.png');
+    this.load.image('profile_pop_up3', 'assets/profile_pop_up3.png');
     this.load.aseprite('girl_player', 'assets/good_sprite_outline_girl.png', 'assets/good_sprite_outline_girl.json')
   }
   create() {
