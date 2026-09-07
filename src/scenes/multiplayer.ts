@@ -156,15 +156,15 @@ $(room.state).players.onRemove((_playerState: any, sessionId: string) => {
     room?.send('setStudyItem', studyItem);
   };
 
-  const destroy = () => {
-    remotePlayers.forEach(sprite => sprite.destroy());
-    remotePlayers.clear();
-    remoteLabels.forEach(label => label.destroy());
-    remoteLabels.clear();
-    remoteStudyItems.forEach(sprite => sprite.destroy());
-    remoteStudyItems.clear();
-    room?.leave();
-  };
+  const destroy = async () => {
+  remotePlayers.forEach(sprite => sprite.destroy());
+  remotePlayers.clear();
+  remoteLabels.forEach(label => label.destroy());
+  remoteLabels.clear();
+  remoteStudyItems.forEach(sprite => sprite.destroy());
+  remoteStudyItems.clear();
+  await room?.leave();
+};
 
   return { destroy, sendAnimState, sendStudyItem };
 }
