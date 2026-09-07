@@ -30,7 +30,6 @@ export function setupMultiplayer(
   const client = new Client(import.meta.env.VITE_SERVER_URL || 'ws://localhost:2567');
   let room: Awaited<ReturnType<typeof client.joinOrCreate>> | null = null;
 
-
   const remotePlayers = new Map<string, Phaser.GameObjects.Sprite>();
   const remoteLabels = new Map<string, { destroy: () => void }>();
   const remoteStudyItems = new Map<string, Phaser.GameObjects.Image>();
@@ -56,10 +55,15 @@ export function setupMultiplayer(
     itemSprite.setVisible(true);
   };
 
-  const addRemotePlayer = (sessionId: string, playerState: any, $: ReturnType<typeof getStateCallbacks>) => {
-    if (room && sessionId === room.sessionId) {
-      // this is our own entry in the shared state — move our own sprite to
-      // the desk the server assigned, rather than rendering a second sprite
+  const addRemotePlayer = (
+    sessionId: string,
+    playerState: any,
+    $: any,
+    mySessionId: string
+  ) => {
+    // mySessionId is captured synchronously from the joined room, so this check
+    // can't fail due to network latency the way `room?.sessionId` could.
+    if (sessionId === mySessionId) {
       localPlayerSprite.setPosition(playerState.x, playerState.y);
       onLocalRepositioned?.();
       return;
@@ -68,20 +72,19 @@ export function setupMultiplayer(
     const remoteKey = playerState.character === 'girl_player' ? 'girl_player' : 'boy_player';
 
     const sprite = scene.add.sprite(playerState.x, playerState.y, remoteKey);
-    sprite.setDepth(0); // same layer as the local player — was -1, which hid it behind the background
+    sprite.setDepth(0);
     sprite.play({ key: getAnimKey(playerState.character, playerState.animState), repeat: -1 });
     remotePlayers.set(sessionId, sprite);
 
     sprite.setInteractive({ useHandCursor: true });
-sprite.on('pointerdown', () => {
-  onRemotePlayerClicked?.(playerState.userId, playerState.character);
-});
+    sprite.on('pointerdown', () => {
+      onRemotePlayerClicked?.(playerState.userId, playerState.character);
+    });
 
     const label = createUsernameLabel(scene, sprite, playerState.username || '???');
     remoteLabels.set(sessionId, label);
 
     updateRemoteStudyItem(sessionId, sprite, playerState.studyItem);
-    console.log('updateRemoteStudyItem called:', sessionId, playerState.studyItem);
 
     // react to this specific remote player's state changes
     $(playerState).listen('animState', (newState: string) => {
@@ -91,7 +94,6 @@ sprite.on('pointerdown', () => {
     $(playerState).listen('studyItem', (newItem: string) => {
       updateRemoteStudyItem(sessionId, sprite, newItem);
     });
-  
   };
 
   const removeRemotePlayer = (sessionId: string) => {
@@ -113,33 +115,34 @@ sprite.on('pointerdown', () => {
   };
 
   const joinRoomId = scene.registry.get('joinRoomId');
-const forceNew = scene.registry.get('forceNewRoom');
+  const forceNew = scene.registry.get('forceNewRoom');
 
-let joinPromise;
-if (joinRoomId) {
-  joinPromise = client.joinById(joinRoomId, { character: chosenCharacter, username, userId });
-} else if (forceNew) {
-  joinPromise = client.create('olin_room', { character: chosenCharacter, username, userId });
-} else {
-  joinPromise = client.joinOrCreate('olin_room', { character: chosenCharacter, username, userId });
-}
+  let joinPromise;
+  if (joinRoomId) {
+    joinPromise = client.joinById(joinRoomId, { character: chosenCharacter, username, userId });
+  } else if (forceNew) {
+    joinPromise = client.create('olin_room', { character: chosenCharacter, username, userId });
+  } else {
+    joinPromise = client.joinOrCreate('olin_room', { character: chosenCharacter, username, userId });
+  }
 
-scene.registry.set('joinRoomId', null);
-scene.registry.set('forceNewRoom', false);
+  scene.registry.set('joinRoomId', null);
+  scene.registry.set('forceNewRoom', false);
 
-joinPromise.then((joinedRoom) => {
+  joinPromise.then((joinedRoom) => {
     room = joinedRoom;
     console.log('Connected to OlinRoom! sessionId:', room.sessionId);
 
     const $ = getStateCallbacks(room) as any;
+    const mySessionId = joinedRoom.sessionId; // captured directly — no race with `room` assignment
 
-$(room.state).players.onAdd((playerState: any, sessionId: string) => {
-  addRemotePlayer(sessionId, playerState, $);
-});
+    $(room.state).players.onAdd((playerState: any, sessionId: string) => {
+      addRemotePlayer(sessionId, playerState, $, mySessionId);
+    });
 
-$(room.state).players.onRemove((_playerState: any, sessionId: string) => {
-  removeRemotePlayer(sessionId);
-});
+    $(room.state).players.onRemove((_playerState: any, sessionId: string) => {
+      removeRemotePlayer(sessionId);
+    });
 
     room.onLeave((code) => {
       console.log('Left OlinRoom, code:', code);
@@ -157,14 +160,14 @@ $(room.state).players.onRemove((_playerState: any, sessionId: string) => {
   };
 
   const destroy = async () => {
-  remotePlayers.forEach(sprite => sprite.destroy());
-  remotePlayers.clear();
-  remoteLabels.forEach(label => label.destroy());
-  remoteLabels.clear();
-  remoteStudyItems.forEach(sprite => sprite.destroy());
-  remoteStudyItems.clear();
-  await room?.leave();
-};
+    remotePlayers.forEach(sprite => sprite.destroy());
+    remotePlayers.clear();
+    remoteLabels.forEach(label => label.destroy());
+    remoteLabels.clear();
+    remoteStudyItems.forEach(sprite => sprite.destroy());
+    remoteStudyItems.clear();
+    await room?.leave();
+  };
 
   return { destroy, sendAnimState, sendStudyItem };
 }
